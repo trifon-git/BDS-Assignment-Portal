@@ -720,6 +720,86 @@ export async function updateAdminEmail(formData: FormData) {
   redirect("/admin/settings?emailChanged=1");
 }
 
+const backAdmins = (message: string) =>
+  redirect(`/admin/settings?adminError=${encodeURIComponent(message)}`);
+
+/**
+ * Create another admin account.
+ *
+ * There is no invite email -- nothing in this app can send one -- so the
+ * person adding a colleague sets their password directly, the same way
+ * ADMIN_PASSWORD seeds the first account at boot. Whoever receives it should
+ * be told to sign in and change their own email/password is out of scope for
+ * now, since only the email can be changed today (see updateAdminEmail).
+ */
+export async function createAdmin(formData: FormData) {
+  const admin = await requireAdmin();
+  const name = str(formData, "name");
+  const email = str(formData, "email").toLowerCase();
+  const password = String(formData.get("password") ?? "");
+
+  if (!name) backAdmins("Give the new admin a name.");
+  if (!isEmailish(email)) backAdmins("Enter a valid email address.");
+  if (password.length < 12) {
+    backAdmins("Use a password of at least 12 characters.");
+  }
+
+  const existing = await db.query.admins.findFirst({
+    where: eq(admins.email, email),
+  });
+  if (existing) backAdmins("An admin with that email already exists.");
+
+  const bcrypt = (await import("bcryptjs")).default;
+  await db.insert(admins).values({
+    name,
+    email,
+    passwordHash: bcrypt.hashSync(password, 12),
+  });
+
+  await recordAudit({
+    action: "admin.created",
+    actorName: `admin:${admin.email}`,
+    detail: email,
+  });
+  revalidatePath("/admin/settings");
+  redirect("/admin/settings?adminAdded=1");
+}
+
+/**
+ * Remove another admin's account.
+ *
+ * Refuses to remove the account making the request (use updateAdminEmail, or
+ * ask a colleague) and refuses to remove the last admin standing, since that
+ * would lock everyone out of the panel with no recovery path.
+ */
+export async function deleteAdmin(formData: FormData) {
+  const admin = await requireAdmin();
+  const id = num(formData, "id");
+
+  if (id === admin.id) {
+    backAdmins("You can't remove your own account. Ask another admin.");
+  }
+
+  const target = await db.query.admins.findFirst({
+    where: eq(admins.id, id),
+  });
+  if (!target) return;
+
+  const allAdmins = await db.select({ id: admins.id }).from(admins);
+  if (allAdmins.length <= 1) {
+    backAdmins("Can't remove the last admin account.");
+  }
+
+  await db.delete(admins).where(eq(admins.id, id));
+
+  await recordAudit({
+    action: "admin.removed",
+    actorName: `admin:${admin.email}`,
+    detail: target.email,
+  });
+  revalidatePath("/admin/settings");
+}
+
 /** Remove one file from a submission, e.g. a student uploaded the wrong thing. */
 export async function deleteSubmissionFile(formData: FormData) {
   const admin = await requireAdmin();

@@ -2,10 +2,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { saveSettings, updateAdminEmail } from "@/lib/admin-actions";
+import { db } from "@/db";
+import { admins } from "@/db/schema";
+import {
+  createAdmin,
+  deleteAdmin,
+  saveSettings,
+  updateAdminEmail,
+} from "@/lib/admin-actions";
 import { requireAdmin } from "@/lib/auth";
+import { formatDeadline } from "@/lib/format";
 import { getAllSettings } from "@/lib/settings";
 import { MAX_UPLOAD_BYTES, TIMEZONE } from "@/lib/config";
+import { asc } from "drizzle-orm";
 
 export const dynamic = "force-dynamic";
 
@@ -16,10 +25,17 @@ export default async function SettingsPage({
 }: PageProps<"/admin/settings">) {
   const admin = await requireAdmin();
   const settings = await getAllSettings();
+  const allAdmins = await db
+    .select()
+    .from(admins)
+    .orderBy(asc(admins.createdAt));
   const query = await searchParams;
   const emailChanged = query.emailChanged === "1";
   const emailError =
     typeof query.emailError === "string" ? query.emailError : null;
+  const adminAdded = query.adminAdded === "1";
+  const adminError =
+    typeof query.adminError === "string" ? query.adminError : null;
 
   return (
     <>
@@ -56,6 +72,86 @@ export default async function SettingsPage({
           </div>
           <Button type="submit" variant="outline">
             Update email
+          </Button>
+        </form>
+      </section>
+
+      <section className="mt-6 max-w-2xl space-y-3 rounded-lg border bg-card p-4">
+        <h2 className="text-sm font-medium">Admin accounts</h2>
+        <p className="text-xs text-muted-foreground">
+          Anyone added here can see every submission in the course. There is no
+          invite email — set a password below and tell them what it is
+          yourself.
+        </p>
+        {adminAdded ? (
+          <p className="rounded-md bg-status-delivered-bg px-3 py-2 text-sm text-status-delivered">
+            Admin account created.
+          </p>
+        ) : null}
+        {adminError ? (
+          <p className="rounded-md bg-status-missing-bg px-3 py-2 text-sm text-status-missing">
+            {adminError}
+          </p>
+        ) : null}
+
+        <ul className="divide-y rounded-md border text-sm">
+          {allAdmins.map((a) => (
+            <li
+              key={a.id}
+              className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+            >
+              <span className="min-w-0">
+                <span className="block font-medium">
+                  {a.name}
+                  {a.id === admin.id ? (
+                    <span className="ml-1.5 text-xs text-muted-foreground">
+                      (you)
+                    </span>
+                  ) : null}
+                </span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {a.email} · since {formatDeadline(a.createdAt)}
+                </span>
+              </span>
+              {a.id !== admin.id && allAdmins.length > 1 ? (
+                <form action={deleteAdmin}>
+                  <input type="hidden" name="id" value={a.id} />
+                  <Button type="submit" variant="ghost" size="sm">
+                    Remove
+                  </Button>
+                </form>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+
+        <form action={createAdmin} className="grid gap-2 sm:grid-cols-3">
+          <div className="space-y-1">
+            <Label htmlFor="new-admin-name" className="text-xs">
+              Name
+            </Label>
+            <Input id="new-admin-name" name="name" required />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="new-admin-email" className="text-xs">
+              Email
+            </Label>
+            <Input id="new-admin-email" name="email" type="email" required />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="new-admin-password" className="text-xs">
+              Password
+            </Label>
+            <Input
+              id="new-admin-password"
+              name="password"
+              type="password"
+              minLength={12}
+              required
+            />
+          </div>
+          <Button type="submit" variant="outline" className="sm:col-span-3">
+            Add admin
           </Button>
         </form>
       </section>
