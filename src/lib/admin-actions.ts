@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 
 import { db } from "@/db";
 import {
+  admins,
   assignments,
   deadlineExtensions,
   students,
@@ -683,6 +684,40 @@ export async function saveSettings(formData: FormData) {
 
   revalidatePath("/admin/settings");
   revalidatePath("/");
+}
+
+/**
+ * Change the signed-in admin's own sign-in email.
+ *
+ * There is no separate account-management screen and no "forgot password"
+ * flow -- this is the one place an admin's identity can change after the
+ * account is first seeded from ADMIN_EMAIL at boot. Only the current admin's
+ * own row is ever touched, matched by session rather than by a submitted id.
+ */
+export async function updateAdminEmail(formData: FormData) {
+  const admin = await requireAdmin();
+  const email = str(formData, "email").toLowerCase();
+  const backSettings = (message: string) =>
+    redirect(`/admin/settings?emailError=${encodeURIComponent(message)}`);
+
+  if (!isEmailish(email)) backSettings("Enter a valid email address.");
+
+  const clash = await db.query.admins.findFirst({
+    where: eq(admins.email, email),
+  });
+  if (clash && clash.id !== admin.id) {
+    backSettings("Another admin account already uses that email.");
+  }
+
+  await db.update(admins).set({ email }).where(eq(admins.id, admin.id));
+
+  await recordAudit({
+    action: "admin.email_changed",
+    actorName: `admin:${admin.email}`,
+    detail: `${admin.email} -> ${email}`,
+  });
+  revalidatePath("/admin/settings");
+  redirect("/admin/settings?emailChanged=1");
 }
 
 /** Remove one file from a submission, e.g. a student uploaded the wrong thing. */

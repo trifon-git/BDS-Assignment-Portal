@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { saveSettings } from "@/lib/admin-actions";
+import { saveSettings, updateAdminEmail } from "@/lib/admin-actions";
 import { requireAdmin } from "@/lib/auth";
 import { getAllSettings } from "@/lib/settings";
 import { MAX_UPLOAD_BYTES, TIMEZONE } from "@/lib/config";
@@ -11,13 +11,54 @@ export const dynamic = "force-dynamic";
 
 export const metadata = { title: "Settings" };
 
-export default async function SettingsPage() {
-  await requireAdmin();
+export default async function SettingsPage({
+  searchParams,
+}: PageProps<"/admin/settings">) {
+  const admin = await requireAdmin();
   const settings = await getAllSettings();
+  const query = await searchParams;
+  const emailChanged = query.emailChanged === "1";
+  const emailError =
+    typeof query.emailError === "string" ? query.emailError : null;
 
   return (
     <>
       <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+
+      <section className="mt-6 max-w-2xl space-y-3 rounded-lg border bg-card p-4">
+        <h2 className="text-sm font-medium">Your account</h2>
+        <p className="text-xs text-muted-foreground">
+          The address you sign in with. There is no password reset flow, so if
+          you change this, make sure you can still receive mail at the new
+          address.
+        </p>
+        {emailChanged ? (
+          <p className="rounded-md bg-status-delivered-bg px-3 py-2 text-sm text-status-delivered">
+            Sign-in email updated. Use it next time you log in.
+          </p>
+        ) : null}
+        {emailError ? (
+          <p className="rounded-md bg-status-missing-bg px-3 py-2 text-sm text-status-missing">
+            {emailError}
+          </p>
+        ) : null}
+        <form action={updateAdminEmail} className="flex flex-wrap items-end gap-2">
+          <div className="space-y-2">
+            <Label htmlFor="admin-email">Sign-in email</Label>
+            <Input
+              id="admin-email"
+              name="email"
+              type="email"
+              required
+              defaultValue={admin.email}
+              className="max-w-sm"
+            />
+          </div>
+          <Button type="submit" variant="outline">
+            Update email
+          </Button>
+        </form>
+      </section>
 
       <form action={saveSettings} className="mt-6 max-w-2xl space-y-6">
         <div className="space-y-2">
