@@ -1,0 +1,31 @@
+services:
+  app:
+    build: .
+    # Or, once an image is published:
+    # image: ghcr.io/<org>/aau-assignment-delivery:latest
+    restart: unless-stopped
+    ports:
+      # Bound to localhost: the university's nginx terminates TLS in front.
+      - "127.0.0.1:3000:3000"
+    volumes:
+      # The database and every uploaded file live here. This directory IS the
+      # backup — stop the container, copy it, start again.
+      - ./data:/data
+    environment:
+      DATA_DIR: /data
+      TIMEZONE: Europe/Copenhagen
+      # Used only to create the very first admin account on an empty database.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      ADMIN_NAME: ${ADMIN_NAME:-Course responsible}
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-250}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

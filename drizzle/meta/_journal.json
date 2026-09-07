@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1788355577652,
+      "tag": "0000_wild_power_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788437241570,
+      "tag": "0001_steep_frank_castle",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788778101362,
+      "tag": "0002_handy_ted_forrester",
+      "breakpoints": true
+    }
+  ]
+}
