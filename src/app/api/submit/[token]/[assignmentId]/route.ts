@@ -77,6 +77,7 @@ export async function POST(
     studentId: fields.studentId ? Number(fields.studentId) : null,
     videoUrl: fields.videoUrl ?? "",
     videoShareConfirmed: fields.videoShareConfirmed === "on",
+    linkUrl: fields.linkUrl ?? "",
     note: fields.note ?? "",
     files,
     rejected,

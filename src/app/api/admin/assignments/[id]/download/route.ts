@@ -55,6 +55,7 @@ export async function GET(
       "Submitted by",
       "Video URL",
       "Sharing confirmed",
+      "Link URL",
       "Files",
       "Note",
       "Review",
@@ -79,6 +80,7 @@ export async function GET(
       row.submittedByName ?? "",
       row.submission?.videoUrl ?? "",
       row.submission?.videoShareConfirmed ? "yes" : "no",
+      row.submission?.linkUrl ?? "",
       row.submission?.files.map((f) => f.originalName).join(" | ") ?? "",
       row.submission?.note ?? "",
       row.submission?.status ?? "",
@@ -108,6 +110,7 @@ export async function GET(
       }`,
       row.submittedByName ? `Submitted by: ${row.submittedByName}` : null,
       row.submission.videoUrl ? `Video: ${row.submission.videoUrl}` : null,
+      row.submission.linkUrl ? `Link: ${row.submission.linkUrl}` : null,
       row.submission.note ? `Note: ${row.submission.note}` : null,
     ]
       .filter(Boolean)

@@ -1,0 +1,1 @@
+ALTER TABLE `submissions` ADD `link_url` text;

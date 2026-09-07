@@ -33,6 +33,9 @@ export interface SubmitInput {
   studentId: number | null;
   videoUrl: string;
   videoShareConfirmed: boolean;
+  /** A link to the code instead of, or alongside, an uploaded file — a Colab
+   *  notebook, a GitHub repo, anything hosted elsewhere. */
+  linkUrl: string;
   note: string;
   files: StoredFile[];
   /** Files the parser refused, reported back to the student. */
@@ -112,12 +115,34 @@ export async function submitDelivery(
   const keptFiles = input.keepExistingFiles ? (existing?.files ?? []) : [];
   const totalFiles = input.files.length + keptFiles.length;
 
-  if (assignment.requiresFiles && totalFiles === 0) {
+  const linkUrlRaw = input.linkUrl.trim();
+  let linkUrl: string | null = null;
+  if (linkUrlRaw) {
+    try {
+      const parsed = new URL(linkUrlRaw);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new Error("not http(s)");
+      }
+      linkUrl = linkUrlRaw;
+    } catch {
+      return fail(
+        input,
+        "That does not look like a link. Paste the full address, starting with https://",
+      );
+    }
+  }
+
+  // A link to hosted code (a Colab notebook, a GitHub repo) satisfies "needs
+  // files" just as well as an upload does — a team can give either, or both.
+  if (assignment.requiresFiles && totalFiles === 0 && !linkUrl) {
     const because =
       input.rejected.length > 0
         ? ` (${input.rejected.map((r) => `${r.filename}: ${r.reason}`).join("; ")})`
         : "";
-    return fail(input, `This assignment needs at least one file${because}.`);
+    return fail(
+      input,
+      `This assignment needs at least one file, or a link to your code${because}.`,
+    );
   }
 
   let videoUrl: string | null = input.videoUrl.trim() || null;
@@ -148,6 +173,7 @@ export async function submitDelivery(
           submittedByStudentId: input.submittedByStudentId,
           videoUrl,
           videoShareConfirmed: input.videoShareConfirmed,
+          linkUrl,
           note: input.note.trim() || null,
           submittedAt: now,
           isLate,
@@ -177,6 +203,7 @@ export async function submitDelivery(
           submittedByStudentId: input.submittedByStudentId,
           videoUrl,
           videoShareConfirmed: input.videoShareConfirmed,
+          linkUrl,
           note: input.note.trim() || null,
           submittedAt: now,
           isLate,
@@ -248,7 +275,9 @@ export function requirementSummary(assignment: Assignment): string {
       .map((e) => e.trim().toUpperCase())
       .filter(Boolean);
     parts.push(
-      exts.length > 0 ? `${exts.join(" or ")} file(s)` : "one or more files",
+      exts.length > 0
+        ? `${exts.join(" or ")} file(s), or a link to your code`
+        : "one or more files, or a link to your code",
     );
   }
   if (assignment.requiresVideo) parts.push("a video link");

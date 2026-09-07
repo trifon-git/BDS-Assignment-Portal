@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   Download,
   Info,
+  Link2,
   Video,
 } from "lucide-react";
 
@@ -242,6 +243,23 @@ export default async function AssignmentPage({
                     </p>
                   ) : null}
 
+                  {row.submission.linkUrl ? (
+                    <p className="flex items-center gap-2">
+                      <Link2
+                        className="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                      <a
+                        href={row.submission.linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="min-w-0 truncate text-aau-600 hover:underline"
+                      >
+                        {row.submission.linkUrl}
+                      </a>
+                    </p>
+                  ) : null}
+
                   {row.submission.reviewComment ? (
                     <p
                       className={
@@ -269,6 +287,7 @@ export default async function AssignmentPage({
                   maxFileSizeMb={assignment.maxFileSizeMb}
                   hasExisting={Boolean(row.submission)}
                   existingVideoUrl={row.submission?.videoUrl ?? ""}
+                  existingLinkUrl={row.submission?.linkUrl ?? ""}
                   existingNote={row.submission?.note ?? ""}
                   willBeLate={deadline.wouldBeLate}
                 />

@@ -207,6 +207,10 @@ export const submissions = sqliteTable(
     videoShareConfirmed: integer("video_share_confirmed", { mode: "boolean" })
       .notNull()
       .default(false),
+    /** An alternative to uploading a file — a Colab notebook, a GitHub repo,
+     *  anything hosted elsewhere. Either this or a file satisfies
+     *  requiresFiles; a team can give both. */
+    linkUrl: text("link_url"),
     note: text("note"),
 
     status: text("status")

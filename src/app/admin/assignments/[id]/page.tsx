@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
-import { ArrowLeft, Download, Pencil, Video } from "lucide-react";
+import { ArrowLeft, Download, Link2, Pencil, Video } from "lucide-react";
 
 import { ChaseList } from "@/components/chase-list";
 import { ExtensionControl } from "@/components/extension-control";
@@ -215,6 +215,23 @@ export default async function DeliveryMatrixPage({
                           sharing not confirmed
                         </span>
                       )}
+                    </p>
+                  ) : null}
+
+                  {row.submission.linkUrl ? (
+                    <p className="flex items-center gap-2">
+                      <Link2
+                        className="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                      />
+                      <a
+                        href={row.submission.linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="min-w-0 truncate text-aau-600 hover:underline"
+                      >
+                        {row.submission.linkUrl}
+                      </a>
                     </p>
                   ) : null}
 

@@ -30,6 +30,7 @@ export function SubmissionForm({
   maxFileSizeMb,
   hasExisting,
   existingVideoUrl,
+  existingLinkUrl,
   existingNote,
   willBeLate,
   className,
@@ -43,6 +44,7 @@ export function SubmissionForm({
   maxFileSizeMb: number;
   hasExisting: boolean;
   existingVideoUrl: string;
+  existingLinkUrl: string;
   existingNote: string;
   willBeLate: boolean;
   className?: string;
@@ -116,7 +118,6 @@ export function SubmissionForm({
             type="file"
             multiple
             accept={accept || undefined}
-            required={!hasExisting}
             onChange={(e) => setChosen(Array.from(e.target.files ?? []))}
             className="h-auto py-2 file:mr-3 file:rounded file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium"
           />
@@ -156,6 +157,28 @@ export function SubmissionForm({
               </span>
             </label>
           ) : null}
+
+          <div className="space-y-2 pt-2">
+            <Label htmlFor={`linkUrl-${studentId ?? "team"}`}>
+              Or a link to your code{" "}
+              <span className="font-normal text-muted-foreground">
+                (optional)
+              </span>
+            </Label>
+            <Input
+              id={`linkUrl-${studentId ?? "team"}`}
+              name="linkUrl"
+              type="url"
+              inputMode="url"
+              defaultValue={existingLinkUrl}
+              placeholder="https://colab.research.google.com/…"
+            />
+            <p className="text-xs text-muted-foreground">
+              A Google Colab notebook, a GitHub repo, anything hosted
+              elsewhere. Make sure it&rsquo;s shared so we can open it — a
+              link nobody else can access counts as not delivered.
+            </p>
+          </div>
         </div>
       ) : null}
 
