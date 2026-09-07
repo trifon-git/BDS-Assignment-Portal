@@ -228,8 +228,14 @@ function Card({ card, token }: { card: AssignmentCard; token: string }) {
         </ul>
       ) : null}
 
-      {card.submission?.status === "rework" && card.submission.reviewComment ? (
-        <p className="mt-4 rounded-md bg-status-rework-bg p-3 text-sm text-status-rework">
+      {card.submission?.reviewComment ? (
+        <p
+          className={
+            card.submission.status === "rework"
+              ? "mt-4 rounded-md bg-status-rework-bg p-3 text-sm text-status-rework"
+              : "mt-4 rounded-md bg-status-delivered-bg p-3 text-sm text-status-delivered"
+          }
+        >
           <span className="font-medium">Feedback:</span>{" "}
           {card.submission.reviewComment}
         </p>

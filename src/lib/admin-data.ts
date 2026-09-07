@@ -1,10 +1,11 @@
 import "server-only";
 
-import { and, asc, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
   assignments,
+  auditLog,
   deadlineExtensions,
   students,
   submissionFiles,
@@ -12,6 +13,7 @@ import {
   teamMembers,
   teams,
   type Assignment,
+  type AuditLogEntry,
   type Student,
   type Submission,
   type SubmissionFile,
@@ -699,4 +701,46 @@ export async function getRoster(): Promise<RosterRow[]> {
     soloSubmissions: soloBy.get(student.id) ?? 0,
     submittedByThem: sentBy.get(student.id) ?? 0,
   }));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Notifications                                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Events an admin would want a badge for. Deliberately an explicit allowlist
+ * rather than an actor-name prefix check: `submission.created` (a student
+ * delivering) and `submission.approved` (an admin reviewing) share the
+ * `submission.` prefix, so prefix-matching cannot tell them apart.
+ */
+export const NOTIFY_ACTIONS = [
+  "submission.created",
+  "submission.replaced",
+  "forum.posted",
+  "team.created",
+] as const;
+
+/** How many notify-worthy events happened after `seenAt`. Null means the
+ *  admin has never looked, so everything counts. */
+export async function getNotificationCount(
+  seenAt: number | null,
+): Promise<number> {
+  const row = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(auditLog)
+    .where(
+      and(
+        inArray(auditLog.action, NOTIFY_ACTIONS),
+        gt(auditLog.at, seenAt ?? 0),
+      ),
+    )
+    .get();
+  return Number(row?.n ?? 0);
+}
+
+/** The most recent activity, newest first, for the overview's feed. */
+export async function getRecentActivity(
+  limit = 20,
+): Promise<AuditLogEntry[]> {
+  return db.select().from(auditLog).orderBy(desc(auditLog.at)).limit(limit);
 }

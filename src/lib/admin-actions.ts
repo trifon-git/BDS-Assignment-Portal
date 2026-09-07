@@ -162,19 +162,31 @@ export async function deleteAssignment(formData: FormData) {
 /* Review                                                                      */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Approve, send back, or just leave a comment.
+ *
+ * `status` is optional: when it is absent (the "Save feedback" button) the
+ * comment is written without touching the review status at all, for a
+ * delivery that is fine as-is but still worth a note. When present it must be
+ * one of the three real values — an admin action is reachable by direct POST,
+ * so this cannot trust a stray value through.
+ */
 export async function reviewSubmission(formData: FormData) {
   const admin = await requireAdmin();
 
   const submissionId = num(formData, "submissionId");
-  const status = str(formData, "status") as SubmissionStatus;
-  if (!["submitted", "approved", "rework"].includes(status)) return;
+  const rawStatus = str(formData, "status");
+  const status = rawStatus
+    ? (rawStatus as SubmissionStatus)
+    : null;
+  if (status && !["submitted", "approved", "rework"].includes(status)) return;
 
   const comment = String(formData.get("reviewComment") ?? "").trim();
 
   await db
     .update(submissions)
     .set({
-      status,
+      ...(status ? { status } : {}),
       reviewComment: comment || null,
       reviewedAt: Date.now(),
       reviewedByAdminId: admin.id,
@@ -187,7 +199,7 @@ export async function reviewSubmission(formData: FormData) {
   });
 
   await recordAudit({
-    action: `submission.${status}`,
+    action: status ? `submission.${status}` : "submission.commented",
     actorName: `admin:${admin.email}`,
     teamId: submission?.teamId ?? null,
     detail: `${submission?.assignment.title ?? ""} — ${submission?.team.name ?? ""}`,
@@ -718,6 +730,25 @@ export async function updateAdminEmail(formData: FormData) {
   });
   revalidatePath("/admin/settings");
   redirect("/admin/settings?emailChanged=1");
+}
+
+/**
+ * Clear the signed-in admin's notification badge.
+ *
+ * Deliberately not called from the overview's own render — a server component
+ * can render more than once, and writing the seen-at timestamp mid-render
+ * would risk erasing the "new" markers before they were ever shown. Instead a
+ * tiny client component fires this once after the page has painted (see
+ * `mark-notifications-seen.tsx`), so the badge clears a beat after the visit,
+ * not during it.
+ */
+export async function markNotificationsSeen(): Promise<void> {
+  const admin = await requireAdmin();
+  await db
+    .update(admins)
+    .set({ notificationsSeenAt: Date.now() })
+    .where(eq(admins.id, admin.id));
+  revalidatePath("/admin", "layout");
 }
 
 const backAdmins = (message: string) =>

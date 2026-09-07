@@ -1,0 +1,1 @@
+ALTER TABLE `admins` ADD `notifications_seen_at` integer;

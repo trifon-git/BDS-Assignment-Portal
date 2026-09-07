@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { desc } from "drizzle-orm";
 import {
   AlertTriangle,
   ArrowRight,
@@ -12,18 +11,19 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+import { MarkNotificationsSeen } from "@/components/mark-notifications-seen";
 import { StatusBadge } from "@/components/status-badge";
 import { StorageTrendChart } from "@/components/storage-trend-chart";
 import { StudentDeliveryMatrix } from "@/components/student-delivery-matrix";
 import { buttonVariants } from "@/components/ui/button";
 import { WeeklyTrendChart } from "@/components/weekly-trend-chart";
-import { db } from "@/db";
-import { auditLog } from "@/db/schema";
 import {
   getDeliveryMatrix,
   getOverview,
+  getRecentActivity,
   getStorageOverTime,
   getStudentDeliveryMatrix,
+  NOTIFY_ACTIONS,
   type OverviewAssignment,
 } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/auth";
@@ -37,7 +37,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Overview" };
 
 export default async function AdminOverview() {
-  await requireAdmin();
+  const admin = await requireAdmin();
 
   // `now` comes back from the query rather than being read here, so the counts
   // and the countdowns describe the same instant and the render stays a pure
@@ -68,14 +68,12 @@ export default async function AdminOverview() {
   // so the number is worth naming rather than leaving as a gap in a total.
   const ungrouped = current ? Math.max(0, rosterCount - studentCount) : 0;
 
-  const recent = await db
-    .select()
-    .from(auditLog)
-    .orderBy(desc(auditLog.at))
-    .limit(8);
+  const recent = await getRecentActivity();
+  const seenAt = admin.notificationsSeenAt;
 
   return (
     <>
+      <MarkNotificationsSeen />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
         <Link
@@ -451,25 +449,87 @@ export default async function AdminOverview() {
           <p className="mt-3 text-sm text-muted-foreground">Nothing yet.</p>
         ) : (
           <ul className="mt-3 divide-y rounded-lg border bg-card text-sm">
-            {recent.map((entry) => (
-              <li key={entry.id} className="flex flex-wrap gap-x-3 px-4 py-2.5">
-                <span className="text-muted-foreground tabular-nums">
-                  {formatDeadline(entry.at)}
-                </span>
-                <span className="font-medium">{entry.actorName ?? "—"}</span>
-                <span className="text-muted-foreground">{entry.action}</span>
-                {entry.detail ? (
-                  <span className="min-w-0 truncate text-muted-foreground">
-                    {entry.detail}
+            {recent.map((entry) => {
+              const isNew =
+                (NOTIFY_ACTIONS as readonly string[]).includes(entry.action) &&
+                entry.at > (seenAt ?? 0);
+              return (
+                <li
+                  key={entry.id}
+                  className="flex flex-wrap items-center gap-x-3 px-4 py-2.5"
+                >
+                  {isNew ? (
+                    <span
+                      className="size-1.5 shrink-0 rounded-full bg-status-late"
+                      aria-label="New since your last visit"
+                    />
+                  ) : (
+                    <span className="size-1.5 shrink-0" aria-hidden="true" />
+                  )}
+                  <span className="text-muted-foreground tabular-nums">
+                    {formatDeadline(entry.at)}
                   </span>
-                ) : null}
-              </li>
-            ))}
+                  <span className="font-medium">{entry.actorName ?? "—"}</span>
+                  <span className="text-muted-foreground">
+                    {describeAction(entry.action)}
+                  </span>
+                  {entry.detail ? (
+                    <span className="min-w-0 truncate text-muted-foreground">
+                      {entry.detail}
+                    </span>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
     </>
   );
+}
+
+/** Turns a raw dotted action string into the phrase a person reads. Falls
+ *  back to spacing out the dots for anything not worth a bespoke label. */
+const ACTION_LABELS: Record<string, string> = {
+  "submission.created": "delivered",
+  "submission.replaced": "replaced their delivery",
+  "submission.submitted": "reset for another look",
+  "submission.approved": "approved a delivery",
+  "submission.rework": "sent a delivery back",
+  "submission.commented": "left feedback",
+  "forum.posted": "posted in their team forum",
+  "forum.edited": "edited a forum message",
+  "forum.deleted": "deleted a forum message",
+  "team.created": "formed a team",
+  "team.created_by_admin": "created a team",
+  "team.shuffled": "shuffled teams",
+  "team.member_moved": "moved a team member",
+  "team.member_removed": "removed a team member",
+  "team.deleted": "deleted a team",
+  "team.link_regenerated": "regenerated a team link",
+  "teams.copied": "copied teams",
+  "assignment.created": "created an assignment",
+  "assignment.updated": "updated an assignment",
+  "assignment.deleted": "deleted an assignment",
+  "assignment.downloaded": "downloaded all deliveries",
+  "extension.set": "granted an extension",
+  "extension.cleared": "cleared an extension",
+  "roster.imported": "imported the roster",
+  "student.added": "added a student",
+  "student.updated": "updated a student",
+  "student.deleted": "deleted a student",
+  "student.reactivated": "reactivated a student",
+  "student.deactivated": "deactivated a student",
+  "admin.email_changed": "changed their sign-in email",
+  "admin.created": "added an admin",
+  "admin.removed": "removed an admin",
+  "admin.login": "signed in",
+  "admin.login_failed": "tried to sign in",
+  "file.deleted": "deleted a file",
+};
+
+function describeAction(action: string): string {
+  return ACTION_LABELS[action] ?? action.replace(/\./g, " · ");
 }
 
 /**

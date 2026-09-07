@@ -19,6 +19,7 @@ import {
 } from "@/lib/admin-actions";
 import { countProtectedTeams } from "@/lib/teams";
 import { getForumCounts } from "@/lib/forum";
+import { getSetting } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,7 @@ export default async function TeamsPage({
   const protectedTeamCount = countProtectedTeams(selected.id);
   const forumCountsByTeam = await getForumCounts(teams.map((t) => t.team.id));
   const forumCounts = Object.fromEntries(forumCountsByTeam);
+  const courseCode = await getSetting("course_code");
 
   return (
     <>
@@ -134,7 +136,7 @@ export default async function TeamsPage({
           assignmentId={selected.id}
           hasTeams={teams.length > 0}
         />
-        <SendLinks teams={teams} />
+        <SendLinks teams={teams} assignment={selected} courseCode={courseCode} />
       </div>
 
       <TeamBoard
@@ -143,6 +145,8 @@ export default async function TeamsPage({
         roster={roster}
         assignmentId={selected.id}
         forumCounts={forumCounts}
+        assignment={selected}
+        courseCode={courseCode}
       />
     </>
   );

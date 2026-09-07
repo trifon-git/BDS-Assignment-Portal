@@ -171,6 +171,21 @@ export default async function SettingsPage({
         </div>
 
         <div className="space-y-2">
+          <Label htmlFor="course_code">Course code</Label>
+          <Input
+            id="course_code"
+            name="course_code"
+            defaultValue={settings.course_code}
+            maxLength={20}
+            className="max-w-40"
+          />
+          <p className="text-xs text-muted-foreground">
+            Short prefix for emails you send by hand, e.g. &ldquo;BDS · Week 4
+            · Group 2 — Your group link&rdquo;.
+          </p>
+        </div>
+
+        <div className="space-y-2">
           <Label htmlFor="support_email">Contact address for students</Label>
           <Input
             id="support_email"

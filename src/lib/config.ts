@@ -34,6 +34,10 @@ export const TIMEZONE = process.env.TIMEZONE ?? "Europe/Copenhagen";
 /** Defaults for the settings table; admin-editable at /admin/settings. */
 export const SETTING_DEFAULTS = {
   semester_name: "BDS — Autumn 2026",
+  /** Short prefix for emails an admin sends by hand, e.g. "BDS · Week 4 ·
+   *  Group 2 — ...". Kept separate from semester_name, which is too long for
+   *  a subject line. */
+  course_code: "BDS",
   /** Hosts we consider a legitimate place to put a screencast. Panopto first:
    *  it is the tool AAU supports and the one we point students at. */
   video_hosts:

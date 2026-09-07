@@ -341,6 +341,11 @@ export const admins = sqliteTable(
     name: text("name").notNull(),
     email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
+    /** When this admin last looked at the overview. Null means "never" — a
+     *  brand-new admin sees everything as new rather than nothing. Lives here
+     *  rather than on a session, since a session is destroyed on logout and
+     *  pruned when expired. */
+    notificationsSeenAt: integer("notifications_seen_at"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("admins_email_unique").on(t.email)],
@@ -379,6 +384,8 @@ export const auditLog = sqliteTable(
   },
   (t) => [index("audit_log_at_idx").on(t.at)],
 );
+
+export type AuditLogEntry = typeof auditLog.$inferSelect;
 
 /**
  * Small key/value store for admin-editable settings (semester name, video host

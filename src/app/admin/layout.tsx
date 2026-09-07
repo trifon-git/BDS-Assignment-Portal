@@ -4,6 +4,7 @@ import { AdminNav } from "@/components/admin-nav";
 import { AauLogo } from "@/components/brand/aau-logo";
 import { Button } from "@/components/ui/button";
 import { destroySession, getCurrentAdmin } from "@/lib/auth";
+import { getNotificationCount } from "@/lib/admin-data";
 import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,8 @@ export default async function AdminLayout({
 
   if (!admin) return <>{children}</>;
 
+  const notificationCount = await getNotificationCount(admin.notificationsSeenAt);
+
   return (
     <div className="flex min-h-full flex-col">
       <header className="aau-band text-white">
@@ -49,7 +52,7 @@ export default async function AdminLayout({
             </form>
           </div>
         </div>
-        <AdminNav />
+        <AdminNav notificationCount={notificationCount} />
       </header>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">

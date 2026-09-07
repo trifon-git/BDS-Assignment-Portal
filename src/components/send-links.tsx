@@ -4,7 +4,9 @@ import { useState } from "react";
 import { Check, Copy, Mail } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import type { Assignment } from "@/db/schema";
 import type { TeamWithMembers } from "@/lib/admin-data";
+import { mailtoHref, teamLinkEmail } from "@/lib/mailto";
 import { cn } from "@/lib/utils";
 
 /**
@@ -18,9 +20,13 @@ import { cn } from "@/lib/utils";
  */
 export function SendLinks({
   teams,
+  assignment,
+  courseCode,
   className,
 }: {
   teams: TeamWithMembers[];
+  assignment: Pick<Assignment, "title" | "weekNumber" | "dueAt">;
+  courseCode: string;
   className?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -90,11 +96,18 @@ export function SendLinks({
       </p>
       <ul className="mt-3 divide-y rounded-md border">
         {withLink.map(({ team, members, link }) => {
-          const mailto = `mailto:${members.map((m) => m.email).join(",")}?subject=${encodeURIComponent(
-            `${team.name} — your group link`,
-          )}&body=${encodeURIComponent(
-            `Hi ${team.name},\n\nHere is your team's link for this assignment:\n${link}\n\nShort code: ${team.shortCode}`,
-          )}`;
+          const { subject, body } = teamLinkEmail({
+            courseCode,
+            assignment,
+            team,
+            members,
+            link,
+          });
+          const mailto = mailtoHref(
+            members.map((m) => m.email),
+            subject,
+            body,
+          );
           return (
             <li
               key={team.id}

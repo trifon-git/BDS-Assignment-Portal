@@ -13,7 +13,8 @@ const TABS = [
   { href: "/admin/settings", label: "Settings" },
 ] as const;
 
-export function AdminNav() {
+/** `notificationCount` badges the Overview tab — the only one with a feed. */
+export function AdminNav({ notificationCount = 0 }: { notificationCount?: number }) {
   const pathname = usePathname();
 
   return (
@@ -35,13 +36,21 @@ export function AdminNav() {
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "-mb-px inline-block border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors",
+                  "-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-sm font-medium whitespace-nowrap transition-colors",
                   active
                     ? "border-white text-white"
                     : "border-transparent text-white/70 hover:border-white/40 hover:text-white",
                 )}
               >
                 {tab.label}
+                {tab.href === "/admin" && notificationCount > 0 ? (
+                  <span
+                    className="inline-flex min-w-4.5 items-center justify-center rounded-full bg-status-late px-1 text-[0.65rem] leading-4 font-semibold text-white tabular-nums"
+                    aria-label={`${notificationCount} new since your last visit`}
+                  >
+                    {notificationCount > 99 ? "99+" : notificationCount}
+                  </span>
+                ) : null}
               </Link>
             </li>
           );

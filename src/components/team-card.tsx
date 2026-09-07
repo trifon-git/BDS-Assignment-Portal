@@ -18,7 +18,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
-import type { Student, Team } from "@/db/schema";
+import type { Assignment, Student, Team } from "@/db/schema";
 import type { RosterMember } from "@/lib/admin-data";
 import {
   addTeamMember,
@@ -27,6 +27,7 @@ import {
   removeTeamMember,
   renameTeam,
 } from "@/lib/admin-actions";
+import { mailtoHref, teamLinkEmail } from "@/lib/mailto";
 
 /**
  * One team's admin card: rename it, copy or rotate its link, and move people in
@@ -46,6 +47,8 @@ export function TeamCard({
   dragging = null,
   memberDragHandlers,
   forumCount = 0,
+  assignment,
+  courseCode,
 }: {
   team: Team;
   members: Student[];
@@ -58,6 +61,9 @@ export function TeamCard({
   dragging?: number | null;
   memberDragHandlers?: (studentId: number) => React.HTMLAttributes<HTMLLIElement>;
   forumCount?: number;
+  /** For the "Email link" button's subject and body. */
+  assignment: Pick<Assignment, "title" | "weekNumber" | "dueAt">;
+  courseCode: string;
 }) {
   const [copied, setCopied] = useState<"link" | "code" | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -74,11 +80,12 @@ export function TeamCard({
   // To, not Bcc — unlike the chase list, these recipients are teammates who
   // are about to work together, so seeing each other's addresses (and being
   // able to reply-all) is the point rather than something to avoid.
-  const mailto = `mailto:${members.map((m) => m.email).join(",")}?subject=${encodeURIComponent(
-    `${team.name} — your group link`,
-  )}&body=${encodeURIComponent(
-    `Hi ${team.name},\n\nHere is your team's link for this assignment:\n${link}\n\nShort code: ${team.shortCode}`,
-  )}`;
+  const { subject, body } = teamLinkEmail({ courseCode, assignment, team, members, link });
+  const mailto = mailtoHref(
+    members.map((m) => m.email),
+    subject,
+    body,
+  );
 
   async function copy(what: "link" | "code") {
     try {

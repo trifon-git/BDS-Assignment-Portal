@@ -151,11 +151,23 @@ export default async function AssignmentPage({
             {assignment.requiresFiles
               ? ` Up to ${assignment.maxFileSizeMb} MB per file.`
               : ""}
-            {deadline.overdue && assignment.acceptLate
-              ? " The deadline has passed — you can still deliver, and it will be marked late."
-              : ""}
           </span>
         </p>
+
+        {deadline.overdue && assignment.acceptLate ? (
+          <p className="mt-3 flex items-start gap-2 rounded-md bg-status-late-bg p-3 text-sm text-status-late">
+            <AlertTriangle
+              className="mt-0.5 size-4 shrink-0"
+              aria-hidden="true"
+            />
+            <span>
+              <span className="font-medium">
+                The deadline has passed, but delivery is still open.
+              </span>{" "}
+              You can hand in below — it will be recorded as late.
+            </span>
+          </p>
+        ) : null}
       </div>
 
       {/* -- delivery panels --------------------------------------------------- */}

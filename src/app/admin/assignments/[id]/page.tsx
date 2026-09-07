@@ -13,6 +13,7 @@ import { assignments } from "@/db/schema";
 import { getDeliveryMatrix } from "@/lib/admin-data";
 import { requireAdmin } from "@/lib/auth";
 import { formatDeadline } from "@/lib/format";
+import { getSetting } from "@/lib/settings";
 import { formatBytes } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,7 @@ export default async function DeliveryMatrixPage({
   if (!assignment) notFound();
 
   const matrix = await getDeliveryMatrix(assignment);
+  const courseCode = await getSetting("course_code");
   const onlyOutstanding = query.filter === "outstanding";
   const rows = onlyOutstanding
     ? matrix.rows.filter((r) => r.outstanding)
@@ -227,6 +229,10 @@ export default async function DeliveryMatrixPage({
                     submissionId={row.submission.id}
                     status={row.submission.status}
                     comment={row.submission.reviewComment ?? ""}
+                    assignment={assignment}
+                    teamName={row.student ? row.student.name : row.team.name}
+                    emails={row.chaseEmails}
+                    courseCode={courseCode}
                   />
                 </div>
               ) : (

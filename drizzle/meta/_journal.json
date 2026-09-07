@@ -22,6 +22,13 @@
       "when": 1788778101362,
       "tag": "0002_handy_ted_forrester",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788790124099,
+      "tag": "0003_milky_scalphunter",
+      "breakpoints": true
     }
   ]
 }

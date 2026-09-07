@@ -5,7 +5,7 @@ import { GripVertical, Users } from "lucide-react";
 
 import { TeamCard } from "@/components/team-card";
 import type { RosterMember, TeamWithMembers } from "@/lib/admin-data";
-import type { Student } from "@/db/schema";
+import type { Assignment, Student } from "@/db/schema";
 import { moveStudent } from "@/lib/admin-actions";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +44,8 @@ export function TeamBoard({
   roster,
   assignmentId,
   forumCounts,
+  assignment,
+  courseCode,
 }: {
   teams: TeamWithMembers[];
   unassigned: Student[];
@@ -52,6 +54,9 @@ export function TeamBoard({
   assignmentId: number;
   /** Message count per team id, for the "Forum (n)" link on each card. */
   forumCounts?: Record<number, number>;
+  /** For the per-team "Email link" button's subject and body. */
+  assignment: Pick<Assignment, "title" | "weekNumber" | "dueAt">;
+  courseCode: string;
 }) {
   const [dragging, setDragging] = useState<number | null>(null);
   const [over, setOver] = useState<number | null | "none">("none");
@@ -199,6 +204,8 @@ export function TeamBoard({
                 dragging={dragging}
                 memberDragHandlers={dragHandlers}
                 forumCount={forumCounts?.[team.id] ?? 0}
+                assignment={assignment}
+                courseCode={courseCode}
               />
             </li>
           ))}
