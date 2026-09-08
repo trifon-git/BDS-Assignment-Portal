@@ -1,0 +1,22 @@
+{% extends "admin/_base.html" %}
+{% set active = "teams" %}
+{% block content %}
+<p><a href="/admin/teams?assignment={{ team.assignment_id }}" class="btn">&larr; Teams</a></p>
+<h1>{{ team.name }} &mdash; forum</h1>
+<p class="muted small">{{ assignment.title }} &middot; {{ members | map(attribute='name') | join(', ') }}</p>
+
+{% for node in forum %}
+  <div class="forum-thread">
+    <p class="forum-meta">{{ node.message.author_name }} &middot; {{ node.message.created_at | format_deadline }}</p>
+    <p>{{ "(deleted)" if node.message.deleted_at else node.message.body }}</p>
+    {% for reply in node.replies %}
+      <div class="forum-reply">
+        <p class="forum-meta">{{ reply.author_name }} &middot; {{ reply.created_at | format_deadline }}</p>
+        <p>{{ "(deleted)" if reply.deleted_at else reply.body }}</p>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <p class="card muted">No messages yet.</p>
+{% endfor %}
+{% endblock %}

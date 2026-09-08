@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block nav %}
+  <a href="/admin" class="{{ 'active' if active == 'overview' }}">Overview</a>
+  <a href="/admin/assignments" class="{{ 'active' if active == 'assignments' }}">Assignments</a>
+  <a href="/admin/teams" class="{{ 'active' if active == 'teams' }}">Teams</a>
+  <a href="/admin/students" class="{{ 'active' if active == 'students' }}">Students</a>
+  <a href="/admin/settings" class="{{ 'active' if active == 'settings' }}">Settings</a>
+  <span data-notif-ping="/admin/notifications/seen">
+    {% if notification_count and notification_count > 0 %}
+      <span class="badge-count">{{ notification_count }}</span>
+    {% endif %}
+  </span>
+  <form method="post" action="/admin/logout" class="inline">
+    <button type="submit" class="btn btn-sm" style="background:transparent;border-color:rgba(255,255,255,.4);color:#fff;">Sign out</button>
+  </form>
+{% endblock %}

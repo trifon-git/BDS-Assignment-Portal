@@ -52,3 +52,7 @@ next-env.d.ts
 
 # Internal ops notes for the shared Coolify instance -- not part of the app
 /COOLIFY.md
+.data-python-dev/
+.venv-py/
+__pycache__/
+*.pyc

@@ -2,8 +2,16 @@ node_modules
 .next
 .git
 .data
+.data-python-dev
+data
+.venv-py
+__pycache__
+*.pyc
 .tmp-test
 *.log
 .env
 .env.local
 README.md
+src
+public
+scripts

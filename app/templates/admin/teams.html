@@ -1,0 +1,139 @@
+{% extends "admin/_base.html" %}
+{% set active = "teams" %}
+{% block content %}
+<h1>Teams</h1>
+
+<form method="get" action="/admin/teams" class="field" style="max-width:24rem;">
+  <label>Assignment</label>
+  <select name="assignment" onchange="this.form.submit()">
+    {% for a in all_assignments %}
+      <option value="{{ a.id }}" {{ "selected" if a.id == assignment_id }}>{{ a.title }}</option>
+    {% endfor %}
+  </select>
+</form>
+
+{% if shuffled %}
+  <p class="alert alert-success">Shuffled: created {{ created }}, placed {{ placed }}, deleted {{ deleted }}, protected {{ protected_teams }}.</p>
+{% endif %}
+
+{% if assignment %}
+<div class="card">
+  <h3 style="margin-top:0;">Shuffle</h3>
+  <form method="post" action="/admin/teams/shuffle" class="field-row" style="align-items:end;">
+    <input type="hidden" name="assignmentId" value="{{ assignment.id }}">
+    <div class="field">
+      <label>Group size</label>
+      <select name="preferred">
+        <option value="2">2</option><option value="3">3</option>
+        <option value="4" selected>3-4</option><option value="5">5</option>
+        <option value="6">6</option><option value="7">7</option><option value="8">8</option>
+      </select>
+    </div>
+    <div class="field"><button type="submit" name="mode" value="fill" class="btn">Shuffle unassigned students</button></div>
+    <div class="field">
+      <span id="reshuffle-trigger" data-reshuffle-trigger><button type="button" class="btn">Re-shuffle everyone&hellip;</button></span>
+      <span id="reshuffle-confirm" class="hidden">
+        <button type="submit" name="mode" value="reshuffle" class="btn btn-danger" data-confirm="Delete and re-cut every group for this assignment? {{ protected_count }} protected team(s) will be kept.">Yes, re-shuffle</button>
+        <button type="button" class="btn" data-reshuffle-cancel>Cancel</button>
+      </span>
+    </div>
+  </form>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Create a team</h3>
+  <form method="post" action="/admin/teams/create">
+    <input type="hidden" name="assignmentId" value="{{ assignment.id }}">
+    <div class="field"><label>Name</label><input type="text" name="name" required></div>
+    <div class="field">
+      <label>Members</label>
+      <select name="members" multiple size="6">
+        {% for r in roster %}<option value="{{ r.student.id }}">{{ r.student.name }}{{ " (" ~ r.team.name ~ ")" if r.team }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Create</button>
+  </form>
+</div>
+
+{% for t in teams %}
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+      <div>
+        <h3 style="margin:0;">{{ t.team.name }}</h3>
+        <p class="small muted">Code: {{ t.team.short_code }} &middot; <a href="/t/{{ t.team.access_token }}" target="_blank">open page</a> &middot; <a href="/admin/teams/{{ t.team.id }}/forum">forum</a></p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.3rem;align-items:flex-end;">
+        <form method="post" action="/admin/teams/rename" class="field-row">
+          <input type="hidden" name="teamId" value="{{ t.team.id }}">
+          <input type="text" name="name" value="{{ t.team.name }}" style="width:10rem;">
+          <button type="submit" class="btn btn-sm">Rename</button>
+        </form>
+        <form method="post" action="/admin/teams/regenerate" data-confirm="Rotate this team's link and code? The old link stops working immediately.">
+          <input type="hidden" name="teamId" value="{{ t.team.id }}">
+          <button type="submit" class="btn btn-sm">Regenerate link</button>
+        </form>
+        {% set members_names = t.members | map(attribute='name') | list %}
+        <a class="btn btn-sm" href="{{ mailto_href(t.members | map(attribute='email') | list, team_link_email(course_code, assignment.title, assignment.week_number, assignment.due_at, t.team.name, t.team.short_code, members_names, request.url_for('dashboard', token=t.team.access_token) | string)[0], team_link_email(course_code, assignment.title, assignment.week_number, assignment.due_at, t.team.name, t.team.short_code, members_names, request.url_for('dashboard', token=t.team.access_token) | string)[1]) }}">Email link</a>
+        <form method="post" action="/admin/teams/delete" data-confirm="Delete this team? Any submissions and files are removed too.">
+          <input type="hidden" name="teamId" value="{{ t.team.id }}">
+          <button type="submit" class="btn btn-sm btn-danger">Delete team</button>
+        </form>
+      </div>
+    </div>
+    <table style="margin-top:0.5rem;">
+      {% for m in t.members %}
+        <tr>
+          <td>{{ m.name }}</td>
+          <td class="small muted">{{ m.email }}</td>
+          <td style="text-align:right;">
+            <form method="post" action="/admin/teams/move" class="inline">
+              <input type="hidden" name="assignmentId" value="{{ assignment.id }}">
+              <input type="hidden" name="studentId" value="{{ m.id }}">
+              <select name="teamId" onchange="this.form.submit()">
+                <option value="{{ t.team.id }}">{{ t.team.name }} (current)</option>
+                {% for other in teams if other.team.id != t.team.id %}
+                  <option value="{{ other.team.id }}">Move to {{ other.team.name }}</option>
+                {% endfor %}
+              </select>
+            </form>
+            <form method="post" action="/admin/teams/remove-member" class="inline" data-confirm="Take {{ m.name }} off this team?">
+              <input type="hidden" name="assignmentId" value="{{ assignment.id }}">
+              <input type="hidden" name="studentId" value="{{ m.id }}">
+              <button type="submit" class="btn btn-sm">Remove</button>
+            </form>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td class="muted">No members</td></tr>
+      {% endfor %}
+    </table>
+    <div class="field-row" style="margin-top:0.5rem;">
+      <form method="post" action="/admin/teams/add-member" class="field-row" style="align-items:end;">
+        <input type="hidden" name="teamId" value="{{ t.team.id }}">
+        <select name="studentId">
+          {% for r in roster if not (r.team and r.team.id == t.team.id) %}
+            <option value="{{ r.student.id }}">{{ r.student.name }}{{ " (currently: " ~ r.team.name ~ ")" if r.team }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-sm">Add / move here</button>
+      </form>
+    </div>
+  </div>
+{% else %}
+  <p class="card muted">No teams yet for this assignment.</p>
+{% endfor %}
+
+<h2>Unassigned students</h2>
+<div class="card">
+  {% for r in roster if not r.team %}
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:0.25rem 0;">
+      <span>{{ r.student.name }}</span>
+    </div>
+  {% else %}
+    <p class="muted">Everyone is placed.</p>
+  {% endfor %}
+</div>
+{% else %}
+  <p class="card muted">No assignments yet.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "admin/_base.html" %}
+{% set active = "assignments" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+  <div>
+    <h1>{{ assignment.title }}</h1>
+    <p class="muted small">Due {{ assignment.due_at | format_deadline }} &middot; {{ matrix.delivered }}/{{ matrix.total }} delivered &middot; {{ matrix.outstanding }} outstanding &middot; {{ matrix.late }} late</p>
+  </div>
+  <div>
+    <a href="/admin/assignments/{{ assignment.id }}/edit" class="btn">Edit</a>
+    <a href="/api/admin/assignments/{{ assignment.id }}/download" class="btn">Download ZIP + CSV</a>
+  </div>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Copy teams from another assignment</h3>
+  <form method="post" action="/admin/teams/copy" class="field-row" style="align-items:end;">
+    <input type="hidden" name="assignmentId" value="{{ assignment.id }}">
+    <div class="field">
+      <label>From</label>
+      <select name="fromAssignmentId">
+        {% for a in other_assignments %}<option value="{{ a.id }}">{{ a.title }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><button type="submit" class="btn">Copy teams here</button></div>
+  </form>
+</div>
+
+<div style="margin:0.75rem 0;">
+  <a href="/admin/assignments/{{ assignment.id }}{{ '' if missing_only else '?missingOnly=1' }}" class="btn btn-sm">
+    {{ "Show everyone" if missing_only else "Show outstanding only" }}
+  </a>
+</div>
+
+<div class="card table-scroll">
+  <table>
+    <tr><th>Team / Student</th><th>Members</th><th>Status</th><th>Submitted</th><th>Files</th><th>Actions</th></tr>
+    {% for row in rows %}
+      <tr>
+        <td>
+          {{ row.student.name if row.student else row.team.name }}
+          {% if row.extended %}<span class="tag">extended</span>{% endif %}
+        </td>
+        <td class="small muted">{{ row.members | map(attribute='name') | join(', ') }}</td>
+        <td><span class="state-pill state-{{ row.state }}">{{ state_label[row.state] }}</span></td>
+        <td class="small">{{ row.submission.submitted_at | format_deadline if row.submission else "—" }}</td>
+        <td class="small">
+          {% if row.submission %}
+            {% for f in row.submission.files %}
+              <div><a href="/api/files/{{ f.stored_name }}">{{ f.original_name }}</a> ({{ f.size_bytes | format_bytes }})</div>
+            {% endfor %}
+            {% if row.submission.link_url %}<div><a href="{{ row.submission.link_url }}" target="_blank" rel="noopener">code link</a></div>{% endif %}
+            {% if row.submission.video_url %}<div><a href="{{ row.submission.video_url }}" target="_blank" rel="noopener">video</a></div>{% endif %}
+          {% endif %}
+        </td>
+        <td>
+          {% if row.submission %}
+            <form method="post" action="/admin/review" style="margin-bottom:0.3rem;">
+              <input type="hidden" name="submissionId" value="{{ row.submission.id }}">
+              <textarea name="reviewComment" rows="2" placeholder="Feedback...">{{ row.submission.review_comment or '' }}</textarea>
+              <div style="display:flex;gap:0.3rem;margin-top:0.3rem;flex-wrap:wrap;">
+                <button type="submit" name="status" value="approved" class="btn btn-sm">Approve</button>
+                <button type="submit" name="status" value="rework" class="btn btn-sm">Send back</button>
+                <button type="submit" class="btn btn-sm">Save feedback</button>
+              </div>
+            </form>
+            <a class="btn btn-sm" href="{{ mailto_href(row.chase_emails, feedback_email(course_code, assignment.title, assignment.week_number, row.team.name, row.submission.review_comment or '')[0], feedback_email(course_code, assignment.title, assignment.week_number, row.team.name, row.submission.review_comment or '')[1]) }}">Email feedback</a>
+          {% else %}
+            <a class="btn btn-sm" href="mailto:{{ row.chase_emails | join(',') }}?subject={{ (course_code ~ ' - missing delivery') | urlencode }}">Chase by email</a>
+          {% endif %}
+          <details style="margin-top:0.3rem;">
+            <summary class="small">Extension</summary>
+            <form method="post" action="/admin/extension">
+              <input type="hidden" name="assignmentId" value="{{ assignment.id }}">
+              <input type="hidden" name="teamId" value="{{ row.team.id }}">
+              <input type="datetime-local" name="newDueAt" value="{{ row.effective_due_at | to_dt_local if row.extended else '' }}">
+              <input type="text" name="reason" placeholder="Reason (optional)">
+              <button type="submit" class="btn btn-sm">Set</button>
+            </form>
+          </details>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">Nothing to show.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "admin/_base.html" %}
+{% set active = "overview" %}
+{% block content %}
+<h1>Overview</h1>
+
+<div class="stat-grid">
+  <div class="stat-box"><div class="n">{{ data.roster_count }}</div><div class="l">Active students</div></div>
+  <div class="stat-box"><div class="n">{{ data.team_count }}</div><div class="l">Teams (current week)</div></div>
+  <div class="stat-box"><div class="n">{{ data.totals.outstanding }}</div><div class="l">Outstanding deliveries</div></div>
+  <div class="stat-box"><div class="n">{{ data.totals.late }}</div><div class="l">Late this semester</div></div>
+  <div class="stat-box"><div class="n">{{ data.draft_count }}</div><div class="l">Draft assignments</div></div>
+  <div class="stat-box"><div class="n">{{ (data.totals.bytes / 1024 / 1024 / 1024) | round(1) }} GB</div><div class="l">Storage used</div></div>
+</div>
+
+<h2>Weekly delivery trend</h2>
+<div class="card">
+  {% for w in data.weekly_trend %}
+    {% set total = w.on_time + w.late + w.rework + w.missing %}
+    <div style="margin-bottom:0.6rem;">
+      <div style="display:flex;justify-content:space-between;" class="small">
+        <span>{{ w.label }}</span>
+        <span class="muted">{{ w.on_time + w.late }}/{{ total }} delivered</span>
+      </div>
+      <div class="bar-track">
+        {% if total > 0 %}
+          <div class="bar-seg on-time" style="width:{{ (w.on_time/total*100)|round(1) }}%"></div>
+          <div class="bar-seg late" style="width:{{ (w.late/total*100)|round(1) }}%"></div>
+          <div class="bar-seg rework" style="width:{{ (w.rework/total*100)|round(1) }}%"></div>
+          <div class="bar-seg missing" style="width:{{ (w.missing/total*100)|round(1) }}%"></div>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <p class="muted">No published assignments yet.</p>
+  {% endfor %}
+  <p class="small muted">On time / late / needs rework / missing.</p>
+</div>
+
+<h2>Assignments</h2>
+{% for s in data.summaries %}
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
+      <h3 style="margin:0;"><a href="/admin/assignments/{{ s.assignment.id }}">{{ s.assignment.title }}</a></h3>
+      <span class="small muted">{{ s.delivered }}/{{ s.total }} delivered &middot; {{ s.outstanding }} outstanding &middot; {{ s.late }} late</span>
+    </div>
+    <div class="bar-track" style="margin-top:0.5rem;">
+      {% if s.total > 0 %}
+        <div class="bar-seg on-time" style="width:{{ ((s.delivered - s.late_delivered)/s.total*100)|round(1) }}%"></div>
+        <div class="bar-seg late" style="width:{{ (s.late_delivered/s.total*100)|round(1) }}%"></div>
+        <div class="bar-seg rework" style="width:{{ (s.rework/s.total*100)|round(1) }}%"></div>
+        <div class="bar-seg missing" style="width:{{ (s.not_delivered/s.total*100)|round(1) }}%"></div>
+      {% endif %}
+    </div>
+  </div>
+{% endfor %}
+
+<h2>Storage over time</h2>
+<div class="card table-scroll">
+  <table>
+    <tr><th>Day</th><th>Added</th><th>Cumulative</th></tr>
+    {% for p in storage %}
+      <tr><td>{{ p.day | format_date }}</td><td>{{ p.bytes_added | format_bytes }}</td><td>{{ p.cumulative_bytes | format_bytes }}</td></tr>
+    {% else %}
+      <tr><td colspan="3" class="muted">No files uploaded yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+
+<h2>Student delivery matrix</h2>
+<div class="card table-scroll">
+  <table>
+    <tr><th>Student</th>{% for c in matrix.columns %}<th>{{ c.week_number and ("W" ~ c.week_number) or c.title }}</th>{% endfor %}</tr>
+    {% for row in matrix.rows %}
+      <tr>
+        <td>{{ row.student.name }}</td>
+        {% for cell in row.cells %}<td><span class="state-pill state-{{ cell.state }}">{{ state_label[cell.state] }}</span></td>{% endfor %}
+      </tr>
+    {% endfor %}
+  </table>
+</div>
+
+<h2>Recent activity</h2>
+<div class="card">
+  <table>
+    {% for e in recent %}
+      <tr><td class="small muted">{{ e.created_at | format_deadline }}</td><td class="small">{{ e.action }}</td><td class="small">{{ e.actor_name or "" }}</td><td class="small muted">{{ e.detail or "" }}</td></tr>
+    {% else %}
+      <tr><td class="muted">Nothing yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

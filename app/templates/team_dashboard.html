@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block content %}
+<p class="small muted" style="text-transform:uppercase;letter-spacing:.03em;">{{ assignment.title }}</p>
+<h1>{{ team.name }}</h1>
+<p class="muted">{{ members | map(attribute='name') | join(', ') if members|length > 0 else "No members yet" }}</p>
+
+<div class="card">
+  <h3 style="margin-top:0;">Your team code</h3>
+  <p style="font-family:monospace;font-size:1.3rem;">{{ team.short_code }}
+    <button class="btn btn-sm" data-copy="{{ team.short_code }}">Copy</button>
+  </p>
+  <p class="small muted">Share this code, or this page's link, with your teammates. Lost? Email <a href="mailto:{{ support_email }}">{{ support_email }}</a>.</p>
+</div>
+
+{% if just_created %}<p class="alert alert-success">Team created! This is your page — bookmark it.</p>{% endif %}
+
+{% if cards|length == 0 %}
+  <p class="card muted" style="text-align:center;">This assignment is not published yet.</p>
+{% else %}
+  {% for card in cards %}
+    {% set a = card.assignment %}
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:1rem;flex-wrap:wrap;">
+        <div>
+          {% if a.week_number %}<span class="tag">Week {{ a.week_number }}</span>{% endif %}
+          <span class="small muted">{{ "Team delivery" if a.mode == "team" else "Individual" }}</span>
+          <h3><a href="/t/{{ token }}/a/{{ a.id }}">{{ a.title }}</a></h3>
+        </div>
+        <span class="state-pill state-{{ card.state }}">{{ state_label[card.state] }}</span>
+      </div>
+      <p class="small muted">
+        Due {{ card.deadline.effective_due_at | format_deadline }}
+        ({{ card.deadline.ms_remaining | format_relative }})
+        {% if card.deadline.extended %}<span class="tag">extended</span>{% endif %}
+      </p>
+      {% if a.mode == "solo" and card.member_rows|length > 0 %}
+        <table>
+          {% for row in card.member_rows %}
+            <tr><td>{{ row.student.name }}</td><td style="text-align:right;"><span class="state-pill state-{{ row.state }}">{{ state_label[row.state] }}</span></td></tr>
+          {% endfor %}
+        </table>
+      {% endif %}
+      {% if card.submission and card.submission.review_comment %}
+        <p class="alert {{ 'alert-error' if card.submission.status == 'rework' else 'alert-success' }}">
+          <strong>Feedback:</strong> {{ card.submission.review_comment }}
+        </p>
+      {% endif %}
+      <a href="/t/{{ token }}/a/{{ a.id }}" class="btn {{ 'btn-primary' if card.deadline.can_submit else '' }}">
+        {% if card.submission or card.member_rows|selectattr('submission')|list|length > 0 %}View or replace{% elif card.deadline.can_submit %}Deliver{% else %}View{% endif %}
+      </a>
+    </div>
+  {% endfor %}
+{% endif %}
+
+<section id="forum" style="margin-top:2rem;">
+  <h2>Team chat</h2>
+  {% if forum_error %}<p class="alert alert-error">{{ forum_error }}</p>{% endif %}
+
+  {% for node in forum %}
+    <div class="forum-thread">
+      <p class="forum-meta">{{ node.message.author_name }} &middot; {{ node.message.created_at | format_time }} {{ "(edited)" if node.message.edited_at }}</p>
+      {% if node.message.deleted_at %}
+        <p class="muted"><em>Message deleted.</em></p>
+      {% else %}
+        <p>{{ node.message.body }}</p>
+        <form method="post" action="/t/{{ token }}/forum/delete" class="inline" data-confirm="Delete this message?">
+          <input type="hidden" name="messageId" value="{{ node.message.id }}">
+          <button type="submit" class="btn btn-sm">Delete</button>
+        </form>
+      {% endif %}
+      {% for reply in node.replies %}
+        <div class="forum-reply">
+          <p class="forum-meta">{{ reply.author_name }} &middot; {{ reply.created_at | format_time }} {{ "(edited)" if reply.edited_at }}</p>
+          {% if reply.deleted_at %}
+            <p class="muted"><em>Message deleted.</em></p>
+          {% else %}
+            <p>{{ reply.body }}</p>
+            <form method="post" action="/t/{{ token }}/forum/delete" class="inline" data-confirm="Delete this message?">
+              <input type="hidden" name="messageId" value="{{ reply.id }}">
+              <button type="submit" class="btn btn-sm">Delete</button>
+            </form>
+          {% endif %}
+        </div>
+      {% endfor %}
+
+      <form method="post" action="/t/{{ token }}/forum/post" style="margin-top:0.5rem;">
+        <input type="hidden" name="parentId" value="{{ node.message.id }}">
+        <div class="field-row">
+          <div class="field">
+            <select name="authorStudentId" required>
+              <option value="">Your name</option>
+              {% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="field"><textarea name="body" placeholder="Reply..." rows="2"></textarea></div>
+        <button type="submit" class="btn btn-sm">Reply</button>
+      </form>
+    </div>
+  {% else %}
+    <p class="muted">No messages yet. Start the conversation below.</p>
+  {% endfor %}
+
+  <div class="card">
+    <h3 style="margin-top:0;">New message</h3>
+    <form method="post" action="/t/{{ token }}/forum/post">
+      <div class="field">
+        <label>Your name</label>
+        <select name="authorStudentId" required>
+          <option value="">Choose your name</option>
+          {% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><textarea name="body" placeholder="Write something..." required></textarea></div>
+      <button type="submit" class="btn btn-primary">Post</button>
+    </form>
+  </div>
+</section>
+
+{% endblock %}

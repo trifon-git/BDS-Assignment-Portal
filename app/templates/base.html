@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}{{ semester_name or "AAU Assignment Portal" }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  {% block topbar %}
+  <div class="topbar">
+    <a class="brand" href="/">{{ semester_name or "AAU Assignment Portal" }}</a>
+    <nav>{% block nav %}{% endblock %}</nav>
+  </div>
+  {% endblock %}
+  <div class="container{% block container_class %}{% endblock %}">
+    {% block content %}{% endblock %}
+  </div>
+  <footer class="site">Questions? <a href="mailto:{{ support_email }}">{{ support_email }}</a></footer>
+  <script src="/static/js/app.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

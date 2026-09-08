@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="/t/{{ token }}" class="btn">&larr; {{ team.name }}</a></p>
+<h1>{{ assignment.title }}</h1>
+<p class="muted">{{ assignment.description | replace('\n', '<br>') | safe }}</p>
+
+<div class="card">
+  <span class="state-pill state-{{ card.state }}">{{ state_label[card.state] }}</span>
+  <p class="small muted">Due {{ card.deadline.effective_due_at | format_deadline }} ({{ card.deadline.ms_remaining | format_relative }})
+    {% if card.deadline.extended %}<span class="tag">extended for your team</span>{% endif %}
+  </p>
+  <p class="small">{{ requirement_summary }}</p>
+</div>
+
+{% if request.query_params.get('delivered') %}<p class="alert alert-success">Delivered. Thanks!</p>{% endif %}
+{% if error %}<p class="alert alert-error">{{ error }}</p>{% endif %}
+
+{% set existing = card.submission %}
+
+{% if existing %}
+<div class="card">
+  <h3 style="margin-top:0;">Current delivery</h3>
+  <p class="small muted">Submitted {{ existing.submitted_at | format_deadline }} {{ "(late)" if existing.is_late }}</p>
+  {% if existing.files|length > 0 %}
+    <ul class="file-list">
+      {% for f in existing.files %}<li>{{ f.original_name }} ({{ f.size_bytes | format_bytes }})</li>{% endfor %}
+    </ul>
+  {% endif %}
+  {% if existing.link_url %}<p>Code link: <a href="{{ existing.link_url }}" target="_blank" rel="noopener">{{ existing.link_url }}</a></p>{% endif %}
+  {% if existing.video_url %}<p>Video: <a href="{{ existing.video_url }}" target="_blank" rel="noopener">{{ existing.video_url }}</a></p>{% endif %}
+  {% if existing.note %}<p class="small">Note: {{ existing.note }}</p>{% endif %}
+  {% if existing.review_comment %}
+    <p class="alert {{ 'alert-error' if existing.status == 'rework' else 'alert-success' }}">
+      <strong>Feedback:</strong> {{ existing.review_comment }}
+    </p>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if card.deadline.can_submit %}
+<div class="card">
+  <h3 style="margin-top:0;">{{ "Replace delivery" if existing else "Deliver" }}</h3>
+  <form method="post" action="/t/{{ token }}/a/{{ assignment.id }}" enctype="multipart/form-data">
+    <div class="field">
+      <label>Submitted by</label>
+      <select name="submittedBy" required>
+        <option value="">Choose your name</option>
+        {% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+      </select>
+    </div>
+
+    {% if assignment.mode == "solo" %}
+      <div class="field">
+        <label>Whose delivery is this?</label>
+        <select name="studentId" required>
+          <option value="">Choose team member</option>
+          {% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+        </select>
+      </div>
+    {% endif %}
+
+    {% if assignment.requires_files %}
+      <div class="field">
+        <label>Files ({{ assignment.allowed_extensions.replace(',', ', ') }}, max {{ assignment.max_file_size_mb }} MB each)</label>
+        <input type="file" name="files" multiple>
+      </div>
+      {% if existing and existing.files|length > 0 %}
+        <div class="checkbox-field field">
+          <input type="checkbox" id="keep" name="keepExistingFiles" checked>
+          <label for="keep">Keep the files already uploaded (uncheck to replace them)</label>
+        </div>
+      {% endif %}
+      <div class="field">
+        <label>...or a link to your code (Colab, GitHub, etc.)</label>
+        <input type="url" name="linkUrl" placeholder="https://..." value="{{ existing.link_url if existing else '' }}">
+      </div>
+    {% endif %}
+
+    {% if assignment.requires_video %}
+      <div class="field">
+        <label>Video link</label>
+        <input type="url" name="videoUrl" placeholder="https://..." value="{{ existing.video_url if existing else '' }}" required>
+      </div>
+      <div class="checkbox-field field">
+        <input type="checkbox" id="share" name="videoShareConfirmed">
+        <label for="share">I have set the sharing on the video so AAU staff can watch it.</label>
+      </div>
+    {% endif %}
+
+    <div class="field">
+      <label>Note (optional)</label>
+      <textarea name="note">{{ existing.note if existing else '' }}</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">{{ "Replace delivery" if existing else "Deliver" }}</button>
+  </form>
+</div>
+{% else %}
+  <p class="card muted">The deadline has passed and this assignment does not accept late deliveries.</p>
+{% endif %}
+{% endblock %}

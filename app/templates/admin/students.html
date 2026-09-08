@@ -1,0 +1,60 @@
+{% extends "admin/_base.html" %}
+{% set active = "students" %}
+{% block content %}
+<h1>Students</h1>
+{% if error %}<p class="alert alert-error">{{ error }}</p>{% endif %}
+{% if added %}<p class="alert alert-success">{{ "Added." if single else (added ~ " added, " ~ (skipped or 0) ~ " already present.") }}</p>{% endif %}
+
+<div class="card">
+  <h3 style="margin-top:0;">Import roster</h3>
+  <form method="post" action="/admin/students/import">
+    <div class="field"><textarea name="roster" rows="6" placeholder="Paste a CSV, or one 'Name &lt;email&gt;' per line"></textarea></div>
+    <button type="submit" class="btn btn-primary">Import</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Add one student</h3>
+  <form method="post" action="/admin/students/add" class="field-row" style="align-items:end;">
+    <div class="field"><label>Name</label><input type="text" name="name" required></div>
+    <div class="field"><label>Email</label><input type="email" name="email" required></div>
+    <div class="field"><button type="submit" class="btn">Add</button></div>
+  </form>
+</div>
+
+<div class="card table-scroll">
+  <table>
+    <tr><th>Name</th><th>Email</th><th>Active</th><th>Grouped</th><th>Deliveries</th><th>Actions</th></tr>
+    {% for r in roster %}
+      <tr>
+        <td>
+          <form method="post" action="/admin/students/update" id="edit-{{ r.student.id }}">
+            <input type="hidden" name="studentId" value="{{ r.student.id }}">
+            <input type="text" name="name" value="{{ r.student.name }}" form="edit-{{ r.student.id }}" style="width:9rem;">
+          </form>
+        </td>
+        <td>
+          <input type="email" name="email" value="{{ r.student.email }}" form="edit-{{ r.student.id }}" style="width:14rem;">
+        </td>
+        <td>{{ "Yes" if r.student.active else "No" }}</td>
+        <td class="small">{{ r.grouped_for }}/{{ r.published_assignments }}</td>
+        <td class="small">{{ r.solo_submissions }} solo, {{ r.submitted_by_them }} sent</td>
+        <td>
+          <button type="submit" form="edit-{{ r.student.id }}" class="btn btn-sm">Save</button>
+          <form method="post" action="/admin/students/active" class="inline">
+            <input type="hidden" name="studentId" value="{{ r.student.id }}">
+            <input type="hidden" name="active" value="{{ 'off' if r.student.active else 'on' }}">
+            <button type="submit" class="btn btn-sm">{{ "Deactivate" if r.student.active else "Reactivate" }}</button>
+          </form>
+          <form method="post" action="/admin/students/delete" class="inline" data-confirm="Remove {{ r.student.name }} for good? Their solo deliveries are removed with them.">
+            <input type="hidden" name="studentId" value="{{ r.student.id }}">
+            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">No students yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "admin/_base.html" %}
+{% set active = "assignments" %}
+{% block content %}
+<div style="display:flex;justify-content:space-between;align-items:center;">
+  <h1>Assignments</h1>
+  <a href="/admin/assignments/new" class="btn btn-primary">New assignment</a>
+</div>
+
+<div class="card table-scroll">
+  <table>
+    <tr><th>Title</th><th>Week</th><th>Mode</th><th>Due</th><th>Status</th><th></th></tr>
+    {% for a in assignments %}
+      <tr>
+        <td><a href="/admin/assignments/{{ a.id }}">{{ a.title }}</a></td>
+        <td>{{ a.week_number or "—" }}</td>
+        <td>{{ a.mode }}</td>
+        <td>{{ a.due_at | format_deadline }}</td>
+        <td>{{ "Published" if a.published_at else "Draft" }}</td>
+        <td><a href="/admin/assignments/{{ a.id }}/edit" class="btn btn-sm">Edit</a></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="6" class="muted">No assignments yet.</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

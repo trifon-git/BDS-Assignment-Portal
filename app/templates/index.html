@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ semester_name }}{% endblock %}
+{% block nav %}<a href="/admin/login">Admin</a>{% endblock %}
+{% block content %}
+<div class="container narrow">
+  <h1>Deliver your weekly assignment</h1>
+  <p class="muted">
+    Enter your team code to open your group's delivery page. There is no account
+    and no password. Each assignment has its own teams, so you get a new code
+    every time you group up — bookmark the page you land on until that
+    assignment is handed in.
+  </p>
+
+  <form method="post" action="/" class="card">
+    <div class="field">
+      <label for="code">Team code</label>
+      <input type="text" id="code" name="code" placeholder="BDS-7K2P" autocomplete="off"
+             style="text-transform:uppercase;font-family:monospace;font-size:1.1rem;">
+    </div>
+    <button type="submit" class="btn btn-primary">Open</button>
+
+    {% if error == "empty" %}
+      <p class="alert alert-error" style="margin-top:0.75rem;">Type your team code first.</p>
+    {% elif error %}
+      <p class="alert alert-error" style="margin-top:0.75rem;">No team has that code. Check it with a teammate, or create a team below.</p>
+    {% else %}
+      <p class="small muted" style="margin-top:0.75rem;">Your code looks like <code>BDS-7K2P</code>. Any member of the team can use it.</p>
+    {% endif %}
+  </form>
+
+  <div class="card">
+    <h2 style="margin-top:0;">Your code is your key — look after it</h2>
+    <ul class="small muted">
+      <li>There is no username, no password and no way to reset one. <strong>The code is the only thing that gets you in.</strong></li>
+      <li>Anyone holding it can deliver, and replace files, as your team. Keep it inside your group.</li>
+      <li>Make sure it is <em>your</em> team's code, and the one for <em>this</em> assignment.</li>
+      <li>Every member should keep the code — then one person losing it is not the whole group's problem.</li>
+    </ul>
+    <p class="small">Lost the code? Email <a href="mailto:{{ support_email }}?subject=Assignment%20delivery%20-%20team%20code">{{ support_email }}</a> before the deadline.</p>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-top:0;">Need a team for an assignment?</h2>
+    <p class="small muted">Pick the assignment, add your group members from the class list, and share the link with them.</p>
+    <a href="/join" class="btn">Create a team</a>
+  </div>
+</div>
+{% endblock %}

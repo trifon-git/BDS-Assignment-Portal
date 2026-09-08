@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container narrow">
+  <p><a href="/join" class="btn">&larr; Different assignment</a></p>
+  <h1>Create a team for {{ assignment.title }}</h1>
+  <p class="muted">Pick yourself and your group members from the class list. You will get a link and a code to share with them.</p>
+  <p class="small muted">This team is for this assignment only. Next week you can group up differently.</p>
+
+  {% if error %}<p class="alert alert-error">{{ error }}</p>{% endif %}
+
+  {% if students|length == 0 %}
+    <p class="card muted" style="text-align:center;">Everyone on the class list is already in a team for this assignment.</p>
+  {% else %}
+    <form method="post" action="/join" class="card">
+      <input type="hidden" name="assignmentId" value="{{ assignment.id }}">
+      <div class="field">
+        <label for="name">Team name</label>
+        <input type="text" id="name" name="name" placeholder="e.g. Group name / topic" required>
+      </div>
+      <div class="field">
+        <label>Members</label>
+        <div style="max-height:16rem;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:0.5rem;">
+          {% for s in students %}
+            <div class="checkbox-field">
+              <input type="checkbox" id="student-{{ s.id }}" name="members" value="{{ s.id }}">
+              <label for="student-{{ s.id }}">{{ s.name }} <span class="muted small">{{ s.email }}</span></label>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">Create team</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

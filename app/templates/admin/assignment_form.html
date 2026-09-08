@@ -1,0 +1,52 @@
+{% extends "admin/_base.html" %}
+{% set active = "assignments" %}
+{% block content %}
+<h1>{{ "Edit assignment" if assignment else "New assignment" }}</h1>
+{% if error %}<p class="alert alert-error">{{ error }}</p>{% endif %}
+
+<form method="post" action="/admin/assignments" class="card">
+  {% if assignment %}<input type="hidden" name="id" value="{{ assignment.id }}">{% endif %}
+
+  <div class="field"><label>Title</label><input type="text" name="title" value="{{ assignment.title if assignment else '' }}" required></div>
+  <div class="field"><label>Description</label><textarea name="description" rows="5">{{ assignment.description if assignment else '' }}</textarea></div>
+
+  <div class="field-row">
+    <div class="field"><label>Week number</label><input type="number" name="weekNumber" value="{{ assignment.week_number if assignment and assignment.week_number else '' }}"></div>
+    <div class="field">
+      <label>Mode</label>
+      <select name="mode">
+        <option value="team" {{ "selected" if not assignment or assignment.mode == "team" }}>Team</option>
+        <option value="solo" {{ "selected" if assignment and assignment.mode == "solo" }}>Individual</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Team grouping</label>
+      <select name="grouping">
+        <option value="copy" {{ "selected" if not assignment or assignment.grouping == "copy" }}>Copy from previous assignment</option>
+        <option value="students" {{ "selected" if assignment and assignment.grouping == "students" }}>Students form their own</option>
+        <option value="admin" {{ "selected" if assignment and assignment.grouping == "admin" }}>Admin only</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="field"><label>Deadline</label><input type="datetime-local" name="dueAt" value="{{ assignment.due_at | to_dt_local if assignment else '' }}" required></div>
+
+  <div class="checkbox-field field"><input type="checkbox" id="acceptLate" name="acceptLate" {{ "checked" if not assignment or assignment.accept_late }}><label for="acceptLate">Accept late deliveries</label></div>
+  <div class="checkbox-field field"><input type="checkbox" id="requiresFiles" name="requiresFiles" {{ "checked" if not assignment or assignment.requires_files }}><label for="requiresFiles">Requires files</label></div>
+  <div class="checkbox-field field"><input type="checkbox" id="requiresVideo" name="requiresVideo" {{ "checked" if assignment and assignment.requires_video }}><label for="requiresVideo">Requires video</label></div>
+
+  <div class="field-row">
+    <div class="field"><label>Allowed extensions</label><input type="text" name="allowedExtensions" value="{{ assignment.allowed_extensions if assignment else 'zip,pdf' }}"></div>
+    <div class="field"><label>Max file size (MB)</label><input type="number" name="maxFileSizeMb" value="{{ assignment.max_file_size_mb if assignment else 200 }}"></div>
+  </div>
+
+  <div class="checkbox-field field"><input type="checkbox" id="published" name="published" {{ "checked" if assignment and assignment.published_at }}><label for="published">Published (visible to students)</label></div>
+
+  <button type="submit" class="btn btn-primary">Save</button>
+</form>
+{% if assignment %}
+  <form method="post" action="/admin/assignments/{{ assignment.id }}/delete" class="inline" data-confirm="Delete this assignment and every submission for it? This cannot be undone.">
+    <button type="submit" class="btn btn-danger">Delete assignment</button>
+  </form>
+{% endif %}
+{% endblock %}

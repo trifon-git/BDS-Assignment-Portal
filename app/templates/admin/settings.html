@@ -1,0 +1,55 @@
+{% extends "admin/_base.html" %}
+{% set active = "settings" %}
+{% block content %}
+<h1>Settings</h1>
+
+<div class="card">
+  <h3 style="margin-top:0;">Course settings</h3>
+  <form method="post" action="/admin/settings">
+    <div class="field"><label>Semester name</label><input type="text" name="semester_name" value="{{ settings.semester_name }}"></div>
+    <div class="field"><label>Course code (used in email subjects)</label><input type="text" name="course_code" value="{{ settings.course_code }}"></div>
+    <div class="field"><label>Support email</label><input type="email" name="support_email" value="{{ settings.support_email }}"></div>
+    <div class="field"><label>Allowed video hosts (comma-separated)</label><input type="text" name="video_hosts" value="{{ settings.video_hosts }}"></div>
+    <div class="field"><label>Default max file size (MB)</label><input type="number" name="default_max_file_size_mb" value="{{ settings.default_max_file_size_mb }}"></div>
+    <button type="submit" class="btn btn-primary">Save</button>
+  </form>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Your account</h3>
+  {% if email_error %}<p class="alert alert-error">{{ email_error }}</p>{% endif %}
+  {% if email_changed %}<p class="alert alert-success">Email updated.</p>{% endif %}
+  <form method="post" action="/admin/settings/email" class="field-row" style="align-items:end;">
+    <div class="field"><label>Sign-in email</label><input type="email" name="email" value="{{ admin.email }}"></div>
+    <div class="field"><button type="submit" class="btn">Update</button></div>
+  </form>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Admin accounts</h3>
+  {% if admin_error %}<p class="alert alert-error">{{ admin_error }}</p>{% endif %}
+  {% if admin_added %}<p class="alert alert-success">Admin added.</p>{% endif %}
+  <table>
+    {% for a in admins %}
+      <tr>
+        <td>{{ a.name }}</td><td>{{ a.email }}</td>
+        <td>
+          {% if a.id != admin.id %}
+          <form method="post" action="/admin/settings/admins/delete" class="inline" data-confirm="Remove {{ a.email }}?">
+            <input type="hidden" name="id" value="{{ a.id }}">
+            <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+  </table>
+  <h4>Add an admin</h4>
+  <form method="post" action="/admin/settings/admins/create" class="field-row" style="align-items:end;">
+    <div class="field"><label>Name</label><input type="text" name="name" required></div>
+    <div class="field"><label>Email</label><input type="email" name="email" required></div>
+    <div class="field"><label>Password</label><input type="password" name="password" minlength="12" required></div>
+    <div class="field"><button type="submit" class="btn">Add</button></div>
+  </form>
+</div>
+{% endblock %}
