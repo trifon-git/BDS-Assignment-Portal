@@ -1,6 +1,10 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.13-slim
+# Pulled from the AWS ECR Public mirror rather than Docker Hub directly --
+# a shared build server doing many unauthenticated pulls a day can hit
+# Docker Hub's anonymous rate limit; the mirror is the same official image,
+# just not subject to that limit.
+FROM public.ecr.aws/docker/library/python:3.13-slim
 WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1
