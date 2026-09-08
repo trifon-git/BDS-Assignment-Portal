@@ -28,19 +28,33 @@
       </select>
     </div>
   </div>
+  <p class="small muted" style="margin-top:-0.5rem;">
+    This is a note to yourself about who's expected to form teams for this
+    assignment — it doesn't move anyone or restrict anything by itself, and
+    <code>/join</code> stays open regardless of what's picked here.
+    <strong>Copy</strong>: you'll copy last week's teams over from the
+    Teams page. <strong>Students form their own</strong>: point them at
+    <code>/join</code>. <strong>Admin only</strong>: you build every team
+    yourself on the Teams page.
+  </p>
 
   <div class="field"><label>Deadline</label><input type="datetime-local" name="dueAt" value="{{ assignment.due_at | to_dt_local if assignment else '' }}" required></div>
 
   <div class="checkbox-field field"><input type="checkbox" id="acceptLate" name="acceptLate" {{ "checked" if not assignment or assignment.accept_late }}><label for="acceptLate">Accept late deliveries</label></div>
+  <p class="small muted" style="margin-top:-0.5rem;">Checked: the delivery form stays open past the deadline, and anything handed in late is just flagged as late. Unchecked: the form closes the moment the deadline passes and nothing more can be submitted, extensions aside.</p>
+
   <div class="checkbox-field field"><input type="checkbox" id="requiresFiles" name="requiresFiles" {{ "checked" if not assignment or assignment.requires_files }}><label for="requiresFiles">Requires files</label></div>
   <div class="checkbox-field field"><input type="checkbox" id="requiresVideo" name="requiresVideo" {{ "checked" if assignment and assignment.requires_video }}><label for="requiresVideo">Requires video</label></div>
+  <p class="small muted" style="margin-top:-0.5rem;">At least one of these two must be on. A link to hosted code (Colab, GitHub, ...) also satisfies "requires files" — students aren't forced to upload a file if they'd rather link one.</p>
 
   <div class="field-row">
     <div class="field"><label>Allowed extensions</label><input type="text" name="allowedExtensions" value="{{ assignment.allowed_extensions if assignment else 'zip,pdf' }}"></div>
     <div class="field"><label>Max file size (MB)</label><input type="number" name="maxFileSizeMb" value="{{ assignment.max_file_size_mb if assignment else 200 }}"></div>
   </div>
+  <p class="small muted" style="margin-top:-0.5rem;">Comma-separated, no dots (e.g. <code>zip,pdf</code>). Leave extensions blank to accept any file type. Only matters when "Requires files" is on.</p>
 
   <div class="checkbox-field field"><input type="checkbox" id="published" name="published" {{ "checked" if assignment and assignment.published_at }}><label for="published">Published (visible to students)</label></div>
+  <p class="small muted" style="margin-top:-0.5rem;">Turning this on makes the assignment visible to any team formed for it immediately on save — there's no scheduled/preview state. A draft is invisible even to a team that already has the code for it.</p>
 
   <button type="submit" class="btn btn-primary">Save</button>
 </form>

@@ -9,7 +9,7 @@
   <p style="font-family:monospace;font-size:1.3rem;">{{ team.short_code }}
     <button class="btn btn-sm" data-copy="{{ team.short_code }}">Copy</button>
   </p>
-  <p class="small muted">Share this code, or this page's link, with your teammates. Lost? Email <a href="mailto:{{ support_email }}">{{ support_email }}</a>.</p>
+  <p class="small muted">Anyone with this code or this page's link can view and deliver as your team, so keep it inside your group. It's the only way back to this page — bookmark it, or write the code down somewhere safe. Lost? Email <a href="mailto:{{ support_email }}">{{ support_email }}</a> before the deadline.</p>
 </div>
 
 {% if just_created %}<p class="alert alert-success">Team created! This is your page — bookmark it.</p>{% endif %}
@@ -54,6 +54,7 @@
 
 <section id="forum" style="margin-top:2rem;">
   <h2>Team chat</h2>
+  <p class="small muted">Use this to organize your work — who's doing what, when you're meeting, questions about the brief. Handy if you don't know each other yet; not required reading if you've already sorted it out elsewhere.</p>
   {% if forum_error %}<p class="alert alert-error">{{ forum_error }}</p>{% endif %}
 
   {% for node in forum %}

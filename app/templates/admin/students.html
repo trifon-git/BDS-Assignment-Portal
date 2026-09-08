@@ -7,6 +7,7 @@
 
 <div class="card">
   <h3 style="margin-top:0;">Import roster</h3>
+  <p class="small muted">Paste whatever the study administration gave you — a CSV export, a column copied out of Excel, or a plain list of "Name &lt;email&gt;" lines. Anything with a recognisable email address per line is picked up; names are guessed from the email if none is found. Already-known emails are skipped, so pasting the same list twice is harmless.</p>
   <form method="post" action="/admin/students/import">
     <div class="field"><textarea name="roster" rows="6" placeholder="Paste a CSV, or one 'Name &lt;email&gt;' per line"></textarea></div>
     <button type="submit" class="btn btn-primary">Import</button>
@@ -21,6 +22,8 @@
     <div class="field"><button type="submit" class="btn">Add</button></div>
   </form>
 </div>
+
+<p class="small muted">Deactivate hides someone from team dropdowns and shuffles without touching anything they've already handed in — the right choice for someone who's left the course mid-semester. Delete removes them from the list for good, along with any solo deliveries they own; deliveries they submitted on behalf of a team stay with the team, only the "submitted by" name clears.</p>
 
 <div class="card table-scroll">
   <table>

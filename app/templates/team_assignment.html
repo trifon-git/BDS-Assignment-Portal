@@ -10,6 +10,9 @@
     {% if card.deadline.extended %}<span class="tag">extended for your team</span>{% endif %}
   </p>
   <p class="small">{{ requirement_summary }}</p>
+  {% if card.deadline.overdue and card.deadline.can_submit %}
+    <p class="small alert alert-error" style="margin-top:0.5rem;">The deadline has passed, but this assignment still accepts late deliveries — you can submit below, it will just be marked late.</p>
+  {% endif %}
 </div>
 
 {% if request.query_params.get('delivered') %}<p class="alert alert-success">Delivered. Thanks!</p>{% endif %}
@@ -40,6 +43,9 @@
 {% if card.deadline.can_submit %}
 <div class="card">
   <h3 style="margin-top:0;">{{ "Replace delivery" if existing else "Deliver" }}</h3>
+  {% if existing %}
+    <p class="small muted">Submitting again replaces everything below — files, link, video and note. If this was sent back for rework, delivering here clears that and puts it back in the review queue as a fresh submission.</p>
+  {% endif %}
   <form method="post" action="/t/{{ token }}/a/{{ assignment.id }}" enctype="multipart/form-data">
     <div class="field">
       <label>Submitted by</label>
@@ -47,6 +53,7 @@
         <option value="">Choose your name</option>
         {% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
       </select>
+      <p class="small muted">Whoever clicks deliver — this is recorded so it's clear who submitted on the team's behalf.</p>
     </div>
 
     {% if assignment.mode == "solo" %}
@@ -69,10 +76,12 @@
           <input type="checkbox" id="keep" name="keepExistingFiles" checked>
           <label for="keep">Keep the files already uploaded (uncheck to replace them)</label>
         </div>
+        <p class="small muted">Ticked: any new files you choose above are added alongside what's already there. Unticked: the old files are deleted and only what you upload now is kept.</p>
       {% endif %}
       <div class="field">
         <label>...or a link to your code (Colab, GitHub, etc.)</label>
         <input type="url" name="linkUrl" placeholder="https://..." value="{{ existing.link_url if existing else '' }}">
+        <p class="small muted">A link is enough on its own — you don't need both a file and a link, unless the assignment asks for it.</p>
       </div>
     {% endif %}
 
@@ -85,11 +94,13 @@
         <input type="checkbox" id="share" name="videoShareConfirmed">
         <label for="share">I have set the sharing on the video so AAU staff can watch it.</label>
       </div>
+      <p class="small muted">Double-check this before ticking — a link nobody can open counts as no video, and it's usually not caught until review.</p>
     {% endif %}
 
     <div class="field">
       <label>Note (optional)</label>
       <textarea name="note">{{ existing.note if existing else '' }}</textarea>
+      <p class="small muted">Anything the reviewer should know: a design choice worth flagging, a part that's incomplete and why, or where to look first.</p>
     </div>
 
     <button type="submit" class="btn btn-primary">{{ "Replace delivery" if existing else "Deliver" }}</button>

@@ -30,6 +30,7 @@
   <a href="/admin/assignments/{{ assignment.id }}{{ '' if missing_only else '?missingOnly=1' }}" class="btn btn-sm">
     {{ "Show everyone" if missing_only else "Show outstanding only" }}
   </a>
+  <span class="small muted">"Outstanding" means nothing delivered yet, or sent back for rework and not yet resubmitted.</span>
 </div>
 
 <div class="card table-scroll">
@@ -63,6 +64,7 @@
                 <button type="submit" name="status" value="rework" class="btn btn-sm">Send back</button>
                 <button type="submit" class="btn btn-sm">Save feedback</button>
               </div>
+              <p class="small muted" style="margin-top:0.2rem;">Approve/Send back set the status the team sees. Save feedback only attaches your comment — the delivery stays in whatever state it's already in, useful for a note on something that's otherwise fine.</p>
             </form>
             <a class="btn btn-sm" href="{{ mailto_href(row.chase_emails, feedback_email(course_code, assignment.title, assignment.week_number, row.team.name, row.submission.review_comment or '')[0], feedback_email(course_code, assignment.title, assignment.week_number, row.team.name, row.submission.review_comment or '')[1]) }}">Email feedback</a>
           {% else %}
@@ -77,6 +79,7 @@
               <input type="text" name="reason" placeholder="Reason (optional)">
               <button type="submit" class="btn btn-sm">Set</button>
             </form>
+            <p class="small muted">Overrides the deadline for this team only — later or earlier than the shared one. Leave the date blank and hit Set to remove the override and go back to the assignment's normal deadline.</p>
           </details>
         </td>
       </tr>

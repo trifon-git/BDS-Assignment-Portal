@@ -38,6 +38,14 @@
       </span>
     </div>
   </form>
+  <p class="small muted">
+    <strong>Shuffle unassigned students</strong> only groups people with no
+    team here yet — safe to run any time, it never touches an existing team.
+    <strong>Re-shuffle everyone</strong> deletes every team for this
+    assignment and re-cuts them from scratch, <em>except</em> a team that
+    already has a submission or a deadline extension — those {{ protected_count }}
+    team(s) are kept exactly as they are, whatever mode you pick.
+  </p>
 </div>
 
 <div class="card">
@@ -117,6 +125,7 @@
         </select>
         <button type="submit" class="btn btn-sm">Add / move here</button>
       </form>
+      <p class="small muted" style="margin-top:0.3rem;">Picking someone already on another team moves them here — they're taken off the old one, not added to both.</p>
     </div>
   </div>
 {% else %}
