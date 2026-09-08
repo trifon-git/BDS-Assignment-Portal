@@ -12,7 +12,12 @@ RUN groupadd --system --gid 1001 app \
     && useradd --system --uid 1001 --gid app app
 
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# --only-binary forces a wheel-only install: bcrypt and pydantic-core ship
+# compiled (Rust) extensions, and this image has no Rust/C toolchain to
+# build them from source. Better to fail the build immediately with a clear
+# "no matching wheel" error than have pip silently attempt (and hang on) a
+# source build that was never going to succeed here.
+RUN pip install --no-cache-dir --only-binary=:all: -r requirements.txt
 
 COPY app ./app
 COPY drizzle ./drizzle
