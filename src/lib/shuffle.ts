@@ -1,29 +1,36 @@
 import { randomBytes } from "node:crypto";
 
 /**
- * Splitting a roster into groups of 3-4, kept pure and dependency-free so it
- * can be unit-tested without a database — the database-facing half lives in
- * `teams.ts`.
+ * Splitting a roster into groups of a chosen size, kept pure and
+ * dependency-free so it can be unit-tested without a database — the
+ * database-facing half lives in `teams.ts`.
  */
 
 /**
  * How many people go in each group, largest first.
  *
  * Starts from the fewest groups that keep every group at or under `preferred`,
- * then spreads the remainder as evenly as possible. If that leaves a group of
- * one or two, one fewer group is used instead — a pair is a worse working unit
- * than a single oversized group, and it is a two-drag fix on the team board.
- * The only sizes this can ever produce outside 3-4 are a lone 1 or 2 (nobody
- * else exists to group them with) or a single group of 5 (n = 5).
+ * then spreads the remainder as evenly as possible. If that leaves a group
+ * smaller than the floor, one fewer group is used instead — a lone straggler
+ * is a worse working unit than a single oversized group, and it is a
+ * two-drag fix on the team board.
+ *
+ * The floor is `min(preferred, 3)`: asking for pairs (`preferred: 2`) means
+ * pairs are the point, so a group of 2 is left alone; asking for anything
+ * 3 or larger keeps the old rule of never leaving a group of 1 or 2 when a
+ * merge can avoid it. The only sizes this can ever produce below the floor
+ * are when the roster itself is too small to reach it (n < floor).
  */
-export function planGroupSizes(n: number, preferred: 3 | 4 = 4): number[] {
+export function planGroupSizes(n: number, preferred: number = 4): number[] {
   if (n <= 0) return [];
   if (n <= preferred) return [n];
+
+  const floor = Math.max(1, Math.min(preferred, 3));
 
   let groups = Math.ceil(n / preferred);
   let sizes = spread(n, groups);
 
-  while (Math.min(...sizes) < 3 && groups > 1) {
+  while (Math.min(...sizes) < floor && groups > 1) {
     groups--;
     sizes = spread(n, groups);
   }
@@ -67,7 +74,7 @@ function shuffle<T>(items: readonly T[], random: () => number): T[] {
 }
 
 /**
- * Randomly split `items` into groups of 3-4 (see `planGroupSizes`).
+ * Randomly split `items` into groups of a chosen size (see `planGroupSizes`).
  *
  * `seed` defaults to a CSPRNG-drawn 32-bit value, so an unseeded call is
  * genuinely random each time; passing a `seed` makes the permutation
@@ -75,7 +82,7 @@ function shuffle<T>(items: readonly T[], random: () => number): T[] {
  */
 export function shuffleIntoGroups<T>(
   items: readonly T[],
-  opts?: { preferred?: 3 | 4; seed?: number },
+  opts?: { preferred?: number; seed?: number },
 ): T[][] {
   const seed = opts?.seed ?? randomBytes(4).readUInt32LE(0);
   const shuffled = shuffle(items, mulberry32(seed));

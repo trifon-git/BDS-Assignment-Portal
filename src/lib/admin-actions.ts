@@ -532,7 +532,12 @@ export async function shuffleTeamsAction(formData: FormData) {
   const assignmentId = num(formData, "assignmentId");
   if (!Number.isInteger(assignmentId)) return;
   const mode = str(formData, "mode") === "reshuffle" ? "reshuffle" : "fill";
-  const preferred = num(formData, "preferred") === 3 ? 3 : 4;
+  const rawPreferred = num(formData, "preferred");
+  // Reachable by direct POST, so clamp rather than trust the submitted
+  // number — a group size of 0 or 1000 is not a real request.
+  const preferred = Number.isInteger(rawPreferred)
+    ? Math.min(10, Math.max(2, rawPreferred))
+    : 4;
 
   const result = shuffleTeams(assignmentId, { mode, preferred });
 

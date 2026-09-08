@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { NativeSelect } from "@/components/ui/native-select";
 
 /**
- * Auto-group students into teams of 3-4.
+ * Auto-group students into teams of a chosen size.
  *
  * "Shuffle unassigned students" is safe to press any time — it only places
  * students who have no team yet, so it cannot undo hand-made groups. The
@@ -45,8 +45,13 @@ export function ShuffleForm({
           defaultValue="4"
           className="max-w-28"
         >
-          <option value="4">3-4</option>
+          <option value="2">2</option>
           <option value="3">3</option>
+          <option value="4">3-4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+          <option value="8">8</option>
         </NativeSelect>
       </div>
 

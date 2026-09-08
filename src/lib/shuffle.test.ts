@@ -42,6 +42,31 @@ describe("planGroupSizes", () => {
       }
     }
   });
+
+  it("respects a preference for larger groups, e.g. 6", () => {
+    expect(planGroupSizes(12, 6)).toEqual([6, 6]);
+    expect(planGroupSizes(18, 6)).toEqual([6, 6, 6]);
+  });
+
+  it("never drops below the floor for any preferred size 3 or larger", () => {
+    for (let n = 6; n <= 60; n++) {
+      for (const preferred of [3, 4, 5, 6, 7, 8]) {
+        const sizes = planGroupSizes(n, preferred);
+        expect(sizes.reduce((a, b) => a + b, 0)).toBe(n);
+        expect(Math.min(...sizes)).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it("allows pairs when preferred is 2, since a pair is the point", () => {
+    expect(planGroupSizes(4, 2)).toEqual([2, 2]);
+    expect(planGroupSizes(6, 2)).toEqual([2, 2, 2]);
+  });
+
+  it("still avoids a lone leftover of 1 when preferred is 2", () => {
+    // 5 people at preferred=2 would naively be [2,2,1] -- merge instead.
+    expect(planGroupSizes(5, 2)).toEqual([3, 2]);
+  });
 });
 
 describe("shuffleIntoGroups", () => {

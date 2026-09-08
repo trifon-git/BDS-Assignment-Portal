@@ -138,7 +138,7 @@ export function countProtectedTeams(assignmentId: number): number {
  */
 export function shuffleTeams(
   assignmentId: number,
-  opts?: { mode?: "fill" | "reshuffle"; preferred?: 3 | 4; seed?: number },
+  opts?: { mode?: "fill" | "reshuffle"; preferred?: number; seed?: number },
 ): ShuffleResult {
   const mode = opts?.mode ?? "fill";
 
