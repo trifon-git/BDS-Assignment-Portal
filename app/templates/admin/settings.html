@@ -19,10 +19,6 @@
       <p class="small muted">Shown to every student as who to contact if their code stops working. There's no password reset in a system with no passwords, so this address is the entire recovery path.</p>
     </div>
     <div class="field">
-      <label>Allowed video hosts</label><input type="text" name="video_hosts" value="{{ settings.video_hosts }}">
-      <p class="small muted">Comma-separated hostnames (e.g. <code>panopto.eu,youtube.com</code>). A link on the list submits silently; one that isn't just shows the student a warning to double-check it works — it's still accepted, so an unusual but working link never blocks a delivery.</p>
-    </div>
-    <div class="field">
       <label>Default max file size (MB)</label><input type="number" name="default_max_file_size_mb" value="{{ settings.default_max_file_size_mb }}">
       <p class="small muted">A reference value only — each assignment sets its own limit when you create it, this doesn't change existing assignments.</p>
     </div>

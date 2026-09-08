@@ -37,53 +37,33 @@ def set_setting(key: str, value: str) -> None:
 @dataclass(frozen=True)
 class VideoUrlCheck:
     valid: bool
-    recognised_host: bool
     host: Optional[str]
     message: Optional[str]
 
 
-def check_video_url(raw: str, allowed_hosts: str) -> VideoUrlCheck:
+def check_video_url(raw: str) -> VideoUrlCheck:
     """Validate a video link.
 
-    Panopto is what AAU supports and what the UI recommends, but the
-    allow-list is a setting rather than a constant so the host list can be
-    corrected without a redeploy -- university tooling changes more often
-    than this app will.
+    Any host is accepted -- there's no allow-list. The only real
+    requirements are that it's a real http(s) link and that the student
+    has confirmed they've set sharing on it, which is checked separately
+    in `submit.py`.
     """
     from urllib.parse import urlparse
 
     trimmed = raw.strip()
     if not trimmed:
-        return VideoUrlCheck(
-            False, False, None, "A video link is required for this assignment."
-        )
+        return VideoUrlCheck(False, None, "A video link is required for this assignment.")
 
     parsed = urlparse(trimmed)
     if not parsed.scheme or not parsed.netloc:
         return VideoUrlCheck(
-            False,
             False,
             None,
             "That does not look like a link. Paste the full address, starting with https://",
         )
 
     if parsed.scheme not in ("http", "https"):
-        return VideoUrlCheck(
-            False, False, parsed.hostname, "The link must start with https://"
-        )
+        return VideoUrlCheck(False, parsed.hostname, "The link must start with https://")
 
-    hosts = [h.strip().lower() for h in allowed_hosts.split(",") if h.strip()]
-    hostname = (parsed.hostname or "").lower()
-    recognised = any(hostname == h or hostname.endswith(f".{h}") for h in hosts)
-
-    return VideoUrlCheck(
-        True,
-        recognised,
-        parsed.hostname,
-        None
-        if recognised
-        else (
-            f"{parsed.hostname} is not one of the usual video hosts. "
-            "Double-check the link works — Panopto is what we recommend."
-        ),
-    )
+    return VideoUrlCheck(True, parsed.hostname, None)

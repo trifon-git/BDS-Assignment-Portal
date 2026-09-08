@@ -48,10 +48,10 @@
   <p class="small muted" style="margin-top:-0.5rem;">At least one of these two must be on. A link to hosted code (Colab, GitHub, ...) also satisfies "requires files" — students aren't forced to upload a file if they'd rather link one.</p>
 
   <div class="field-row">
-    <div class="field"><label>Allowed extensions</label><input type="text" name="allowedExtensions" value="{{ assignment.allowed_extensions if assignment else 'zip,pdf' }}"></div>
+    <div class="field"><label>Allowed extensions</label><input type="text" name="allowedExtensions" value="{{ assignment.allowed_extensions if assignment else 'zip,7z,ipynb,pdf' }}"></div>
     <div class="field"><label>Max file size (MB)</label><input type="number" name="maxFileSizeMb" value="{{ assignment.max_file_size_mb if assignment else 200 }}"></div>
   </div>
-  <p class="small muted" style="margin-top:-0.5rem;">Comma-separated, no dots (e.g. <code>zip,pdf</code>). Leave extensions blank to accept any file type. Only matters when "Requires files" is on.</p>
+  <p class="small muted" style="margin-top:-0.5rem;">Comma-separated, no dots — the default covers a zipped project, a 7z archive, a raw Jupyter notebook, or a PDF, so students don't have to zip a single notebook just to satisfy the form. Add or remove whatever this assignment actually needs. Leave blank to accept any file type. Only matters when "Requires files" is on — a link to hosted code always works instead, whatever's listed here.</p>
 
   <div class="checkbox-field field"><input type="checkbox" id="published" name="published" {{ "checked" if assignment and assignment.published_at }}><label for="published">Published (visible to students)</label></div>
   <p class="small muted" style="margin-top:-0.5rem;">Turning this on makes the assignment visible to any team formed for it immediately on save — there's no scheduled/preview state. A draft is invisible even to a team that already has the code for it.</p>

@@ -37,12 +37,6 @@ SETTING_DEFAULTS = {
     # Group 2 - ...". Kept separate from semester_name, which is too long for
     # a subject line.
     "course_code": "BDS",
-    # Hosts we consider a legitimate place to put a screencast. Panopto
-    # first: it is the tool AAU supports and the one we point students at.
-    "video_hosts": (
-        "panopto.eu,panopto.com,aau.dk,sharepoint.com,onedrive.live.com,"
-        "1drv.ms,teams.microsoft.com,youtube.com,youtu.be,vimeo.com"
-    ),
     "default_max_file_size_mb": "200",
     # Who a student writes to when their link stops working. There is no
     # password reset in a system with no passwords, so this address is the

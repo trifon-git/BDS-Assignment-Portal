@@ -16,7 +16,7 @@ from urllib.parse import urlparse
 from app.db import db_lock, get_db
 from app.lib.auth import record_audit
 from app.lib.dashboard import get_effective_deadline
-from app.lib.settings import check_video_url, get_setting
+from app.lib.settings import check_video_url
 from app.lib.storage import StoredFile, delete_stored_file
 from app.lib.team_access import assert_membership, get_team_by_token
 
@@ -148,8 +148,7 @@ def submit_delivery(input_: SubmitInput, ip: Optional[str] = None) -> SubmitResu
 
     video_url = input_.video_url.strip() or None
     if assignment["requires_video"]:
-        hosts = get_setting("video_hosts")
-        check = check_video_url(input_.video_url, hosts)
+        check = check_video_url(input_.video_url)
         if not check.valid:
             return _fail(input_, check.message or "Invalid video link.")
         if not input_.video_share_confirmed:
