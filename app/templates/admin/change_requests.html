@@ -1,0 +1,55 @@
+{% extends "admin/_base.html" %}
+{% set active = "change_requests" %}
+{% block content %}
+<h1>Change requests</h1>
+<p class="small muted">A student can ask to move to a different group for one assignment, giving a reason but never seeing who else is in which group. Approving picks a destination team and moves them there immediately, the same as a manual move on the Teams page. Declining just closes the request — nothing changes.</p>
+
+<div class="field" style="max-width:16rem;">
+  <label>Show</label>
+  <select onchange="location.href = this.value">
+    <option value="/admin/change-requests?status=pending" {{ "selected" if status_filter == "pending" }}>Pending</option>
+    <option value="/admin/change-requests?status=approved" {{ "selected" if status_filter == "approved" }}>Approved</option>
+    <option value="/admin/change-requests?status=declined" {{ "selected" if status_filter == "declined" }}>Declined</option>
+  </select>
+</div>
+
+{% if requests|length == 0 %}
+  <p class="card muted" style="text-align:center;">Nothing here.</p>
+{% else %}
+  {% for item in requests %}
+    {% set r = item.request %}
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
+        <div>
+          <strong>{{ r.student_name }}</strong> <span class="small muted">{{ r.student_email }}</span>
+          <p class="small muted" style="margin:0.25rem 0;">{{ r.assignment_title }} &middot; currently {{ item.current_team.name if item.current_team else "no group" }}</p>
+        </div>
+        <span class="small muted">{{ r.created_at | format_deadline }}</span>
+      </div>
+      <p>"{{ r.reason }}"</p>
+
+      {% if r.status == "pending" %}
+        <form method="post" action="/admin/change-requests/{{ r.id }}/approve" class="field-row" style="align-items:end;">
+          <div class="field">
+            <label>Move to</label>
+            <select name="targetTeamId" required>
+              {% for t in item.other_teams %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="field"><label>Note (optional)</label><input type="text" name="note"></div>
+          <div class="field"><button type="submit" class="btn btn-primary">Approve &amp; move</button></div>
+        </form>
+        <form method="post" action="/admin/change-requests/{{ r.id }}/decline" class="field-row" style="align-items:end;">
+          <div class="field"><label>Note (optional)</label><input type="text" name="note"></div>
+          <div class="field"><button type="submit" class="btn">Decline</button></div>
+        </form>
+      {% else %}
+        <p class="small alert {{ 'alert-success' if r.status == 'approved' else 'alert-error' }}">
+          {{ r.status | capitalize }}{{ " — " ~ r.admin_note if r.admin_note }}
+        </p>
+        <a class="btn btn-sm" href="{{ mailto_href([r.student_email], change_request_outcome_email(course_code, r.student_name, r.assignment_title, r.status == 'approved', r.admin_note or '')[0], change_request_outcome_email(course_code, r.student_name, r.assignment_title, r.status == 'approved', r.admin_note or '')[1]) }}">Email outcome</a>
+      {% endif %}
+    </div>
+  {% endfor %}
+{% endif %}
+{% endblock %}

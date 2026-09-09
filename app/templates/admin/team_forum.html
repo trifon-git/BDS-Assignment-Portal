@@ -4,6 +4,7 @@
 <p><a href="/admin/teams?assignment={{ team.assignment_id }}" class="btn">&larr; Teams</a></p>
 <h1>{{ team.name }} &mdash; forum</h1>
 <p class="muted small">{{ assignment.title }} &middot; {{ members | map(attribute='name') | join(', ') }}</p>
+<p class="small muted">Read-only — you can see what the team's discussing but can't post or delete from here. Do that from the team's own page if you need to step in.</p>
 
 {% for node in forum %}
   <div class="forum-thread">

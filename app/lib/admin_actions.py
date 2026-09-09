@@ -267,8 +267,8 @@ def import_roster(admin, raw: str) -> tuple[int, int]:
     if fresh:
         with db_lock() as conn:
             conn.executemany(
-                "INSERT INTO students (name, email) VALUES (?, ?)",
-                [(p.name, p.email) for p in fresh],
+                "INSERT INTO students (name, email, access_token) VALUES (?, ?, ?)",
+                [(p.name, p.email, generate_access_token()) for p in fresh],
             )
             conn.commit()
 
@@ -301,7 +301,10 @@ def add_student(admin, name: str, email: str) -> None:
         )
 
     with db_lock() as conn:
-        conn.execute("INSERT INTO students (name, email) VALUES (?, ?)", (name, email))
+        conn.execute(
+            "INSERT INTO students (name, email, access_token) VALUES (?, ?, ?)",
+            (name, email, generate_access_token()),
+        )
         conn.commit()
 
     record_audit(action="student.added", actor_name=f"admin:{admin['email']}", detail=f"{name} <{email}>")
@@ -372,6 +375,19 @@ def delete_student(admin, student_id: int) -> None:
         actor_name=f"admin:{admin['email']}",
         detail=f"{student['name']} <{student['email']}> ({len(solo)} solo delivery/deliveries removed)",
     )
+
+
+def mark_link_sent(student_id: int) -> None:
+    """Fired by the "Email link" button the moment it's clicked, not when
+    the mail actually goes anywhere -- the app can't see past its own
+    mailto: link, so this records intent to send, same honesty as every
+    other mailto action in the app."""
+    with db_lock() as conn:
+        conn.execute(
+            "UPDATE students SET link_sent_at = ? WHERE id = ?",
+            (int(time.time() * 1000), student_id),
+        )
+        conn.commit()
 
 
 def set_student_active(admin, student_id: int, active: bool) -> None:

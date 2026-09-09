@@ -12,9 +12,10 @@ from app.lib.auth import client_ip
 from app.lib.dashboard import get_team_dashboard
 from app.lib.forum import get_team_forum
 from app.lib.forum_actions import delete_message, edit_message, post_message
+from app.lib.identity import get_current_student
 from app.lib.storage import UploadTooLargeError, extension_allowed, store_upload
 from app.lib.submit import SubmitInput, requirement_summary, submit_delivery
-from app.lib.team_access import get_team_by_token
+from app.lib.team_access import assert_membership, get_team_by_token
 from app.templating import render
 
 router = APIRouter(prefix="/t/{token}")
@@ -23,6 +24,16 @@ router = APIRouter(prefix="/t/{token}")
 def _load(token: str):
     ctx = get_team_by_token(token)
     return ctx
+
+
+def _identity_for(request: Request, ctx):
+    """The cookie's student, but only when they actually belong to this
+    team -- a link passed to someone outside the team must still fall back
+    to the old name-picker, never assume the wrong person."""
+    student = get_current_student(request)
+    if student and assert_membership(ctx.team["id"], student["id"]):
+        return student
+    return None
 
 
 @router.get("")
@@ -45,6 +56,7 @@ def dashboard(request: Request, token: str, forumError: Optional[str] = None, ne
         token=token,
         forum_error=forumError,
         just_created=bool(new),
+        current_student=_identity_for(request, ctx),
     )
 
 
@@ -69,6 +81,7 @@ def assignment_detail(request: Request, token: str, assignment_id: int, error: O
         token=token,
         error=error,
         requirement_summary=requirement_summary(ctx.assignment),
+        current_student=_identity_for(request, ctx),
     )
 
 
@@ -86,14 +99,21 @@ async def submit(request: Request, token: str, assignment_id: int):
     form = await request.form()
     assignment = ctx.assignment
 
+    identity = _identity_for(request, ctx)
     submitted_by_raw = form.get("submittedBy")
-    try:
-        submitted_by_student_id = int(submitted_by_raw)
-    except (TypeError, ValueError):
-        return fail("Choose your name from the list before delivering.")
+    if identity:
+        submitted_by_student_id = identity["id"]
+    else:
+        try:
+            submitted_by_student_id = int(submitted_by_raw)
+        except (TypeError, ValueError):
+            return fail("Choose your name from the list before delivering.")
 
-    student_id_raw = form.get("studentId")
-    student_id = int(student_id_raw) if student_id_raw else None
+    if identity and assignment["mode"] == "solo":
+        student_id = identity["id"]
+    else:
+        student_id_raw = form.get("studentId")
+        student_id = int(student_id_raw) if student_id_raw else None
 
     allowed = assignment["allowed_extensions"]
     max_bytes = min(assignment["max_file_size_mb"] * 1024 * 1024, MAX_UPLOAD_BYTES)
@@ -150,10 +170,14 @@ async def forum_post(request: Request, token: str):
         return render(request, "404.html", status_code=404)
 
     form = await request.form()
-    try:
-        author_id = int(form.get("authorStudentId"))
-    except (TypeError, ValueError):
-        author_id = -1
+    identity = _identity_for(request, ctx)
+    if identity:
+        author_id = identity["id"]
+    else:
+        try:
+            author_id = int(form.get("authorStudentId"))
+        except (TypeError, ValueError):
+            author_id = -1
     parent_raw = form.get("parentId")
     parent_id = int(parent_raw) if parent_raw else None
 

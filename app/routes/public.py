@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse
 
 from app.db import db_lock, get_db
 from app.lib.auth import record_audit
+from app.lib.identity import get_student_by_token, set_identity_cookie
 from app.lib.ids import generate_access_token, generate_short_code, normalize_short_code
 from app.lib.team_access import get_open_assignments, get_team_by_short_code, get_unassigned_students
 from app.templating import render
@@ -30,18 +31,18 @@ def open_team(request: Request, code: str = Form("")):
 
 
 @router.get("/join")
-def join(request: Request, assignment: int | None = None, error: str | None = None):
+def join(request: Request, assignment: int | None = None, error: str | None = None, as_: str | None = None):
     if assignment is None:
         open_assignments = get_open_assignments()
-        return render(request, "join_pick.html", assignments=open_assignments)
+        return render(request, "join_pick.html", assignments=open_assignments, as_=as_)
 
     conn = get_db()
     row = conn.execute("SELECT * FROM assignments WHERE id = ?", (assignment,)).fetchone()
-    if not row or not row["published_at"]:
+    if not row or not row["published_at"] or row["grouping"] != "students":
         return render(request, "404.html", status_code=404)
 
     available = get_unassigned_students(assignment)
-    return render(request, "join_form.html", assignment=row, students=available, error=error)
+    return render(request, "join_form.html", assignment=row, students=available, error=error, as_=as_)
 
 
 @router.post("/join")
@@ -50,6 +51,7 @@ def create_team(
     assignmentId: int = Form(...),
     name: str = Form(""),
     members: list[int] = Form([]),
+    as_: str = Form("", alias="as"),
 ):
     back = f"/join?assignment={assignmentId}"
 
@@ -57,6 +59,12 @@ def create_team(
         from urllib.parse import quote
 
         return RedirectResponse(f"{back}&error={quote(message)}", status_code=303)
+
+    assignment = get_db().execute(
+        "SELECT * FROM assignments WHERE id = ?", (assignmentId,)
+    ).fetchone()
+    if not assignment or not assignment["published_at"] or assignment["grouping"] != "students":
+        return render(request, "404.html", status_code=404)
 
     name = name.strip()
     ids = [m for m in members if isinstance(m, int)]
@@ -103,4 +111,8 @@ def create_team(
         ip=request.client.host if request.client else None,
     )
 
-    return RedirectResponse(f"/t/{access_token}?new=1", status_code=303)
+    response = RedirectResponse(f"/t/{access_token}?new=1", status_code=303)
+    identity = get_student_by_token(as_) if as_ else None
+    if identity and identity["id"] in ids:
+        set_identity_cookie(response, as_)
+    return response

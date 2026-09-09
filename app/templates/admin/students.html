@@ -16,6 +16,7 @@
 
 <div class="card">
   <h3 style="margin-top:0;">Add one student</h3>
+  <p class="small muted">Same effect as pasting a single "Name &lt;email&gt;" line above — use whichever's quicker. Adding them here immediately mints their personal link, ready to send from the table below.</p>
   <form method="post" action="/admin/students/add" class="field-row" style="align-items:end;">
     <div class="field"><label>Name</label><input type="text" name="name" required></div>
     <div class="field"><label>Email</label><input type="email" name="email" required></div>
@@ -23,11 +24,16 @@
   </form>
 </div>
 
-<p class="small muted">Deactivate hides someone from team dropdowns and shuffles without touching anything they've already handed in — the right choice for someone who's left the course mid-semester. Delete removes them from the list for good, along with any solo deliveries they own; deliveries they submitted on behalf of a team stay with the team, only the "submitted by" name clears.</p>
+<p class="small muted">Deactivate hides someone from team dropdowns and shuffles without touching anything they've already handed in — the right choice for someone who's left the course mid-semester. Reactivate simply undoes that; it doesn't restore them to any team they were removed from in the meantime. Delete removes them from the list for good, along with any solo deliveries they own; deliveries they submitted on behalf of a team stay with the team, only the "submitted by" name clears. Editing a name or email below changes it everywhere — past deliveries, feedback emails, everything — it does not create a new student.</p>
 
 <div class="card table-scroll">
   <table>
-    <tr><th>Name</th><th>Email</th><th>Active</th><th>Grouped</th><th>Deliveries</th><th>Actions</th></tr>
+    <tr>
+      <th>Name</th><th>Email</th><th>Active</th>
+      <th title="How many published assignments they're currently on a team for, out of every published assignment so far.">Grouped</th>
+      <th title="Solo deliveries they own, and deliveries they clicked submit on for a team.">Deliveries</th>
+      <th>Personal link</th><th>Actions</th>
+    </tr>
     {% for r in roster %}
       <tr>
         <td>
@@ -42,6 +48,20 @@
         <td>{{ "Yes" if r.student.active else "No" }}</td>
         <td class="small">{{ r.grouped_for }}/{{ r.published_assignments }}</td>
         <td class="small">{{ r.solo_submissions }} solo, {{ r.submitted_by_them }} sent</td>
+        <td class="small">
+          {% if r.student.access_token %}
+            {% set link = request.url_for('personal_dashboard', token=r.student.access_token) | string %}
+            <div style="display:flex;align-items:center;gap:0.35rem;flex-wrap:wrap;">
+              <code style="font-size:0.75rem;word-break:break-all;">{{ link }}</code>
+              <button type="button" class="btn btn-sm" data-copy="{{ link }}">Copy</button>
+              <a class="btn btn-sm" data-ping="/admin/students/{{ r.student.id }}/link-sent" data-ping-marker="sent-{{ r.student.id }}"
+                 href="{{ mailto_href([r.student.email], personal_link_email(course_code, r.student.name, link)[0], personal_link_email(course_code, r.student.name, link)[1]) }}">Email link</a>
+              <span id="sent-{{ r.student.id }}" class="small muted{{ '' if r.student.link_sent_at else ' hidden' }}">Sent{{ ' ' ~ (r.student.link_sent_at | format_deadline) if r.student.link_sent_at }}</span>
+            </div>
+          {% else %}
+            <span class="muted">issued on next restart</span>
+          {% endif %}
+        </td>
         <td>
           <button type="submit" form="edit-{{ r.student.id }}" class="btn btn-sm">Save</button>
           <form method="post" action="/admin/students/active" class="inline">
@@ -56,7 +76,7 @@
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="6" class="muted">No students yet.</td></tr>
+      <tr><td colspan="7" class="muted">No students yet.</td></tr>
     {% endfor %}
   </table>
 </div>
