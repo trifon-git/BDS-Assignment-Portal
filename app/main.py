@@ -12,6 +12,7 @@ from app.deps import RedirectException, redirect_exception_handler
 from app.lib.admin_actions import AdminActionError
 from app.lib.auth import hash_password
 from app.lib.ids import generate_access_token
+from app.lib.roster import titlecase_name
 
 app = FastAPI(title="AAU Assignment Portal")
 
@@ -56,6 +57,19 @@ def on_startup() -> None:
     if missing_tokens:
         conn.commit()
         print(f"[startup] issued personal links for {len(missing_tokens)} student(s)")
+
+    # Roster names arrive with whatever casing the study administration's
+    # export used (often ALL CAPS across several middle/last names) -- fix
+    # them to one consistent style on every boot, existing rows included.
+    renamed = 0
+    for row in conn.execute("SELECT id, name FROM students").fetchall():
+        fixed = titlecase_name(row["name"])
+        if fixed != row["name"]:
+            conn.execute("UPDATE students SET name = ? WHERE id = ?", (fixed, row["id"]))
+            renamed += 1
+    if renamed:
+        conn.commit()
+        print(f"[startup] normalized casing for {renamed} student name(s)")
 
     existing = conn.execute("SELECT count(*) AS n FROM admins").fetchone()["n"]
     if existing > 0:

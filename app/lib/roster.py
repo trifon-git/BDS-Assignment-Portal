@@ -25,6 +25,26 @@ class RosterEntry:
     email: str
 
 
+def titlecase_name(name: str) -> str:
+    """"AMALIE SOERENSEN-MADSEN" / "amalie de la cruz" -> "Amalie Soerensen-Madsen"
+    / "Amalie De La Cruz". University exports mix casing across many middle
+    and last names, so this capitalizes the first letter of every word --
+    split on spaces, hyphens and apostrophes -- and lowercases the rest.
+    """
+    def cap_word(word: str) -> str:
+        if not word:
+            return word
+        return word[0].upper() + word[1:].lower()
+
+    def cap_hyphenated(part: str) -> str:
+        return "-".join(cap_word(w) for w in part.split("-"))
+
+    def cap_apostrophed(part: str) -> str:
+        return "'".join(cap_hyphenated(w) for w in part.split("'"))
+
+    return " ".join(cap_apostrophed(w) for w in name.strip().split())
+
+
 def is_emailish(value: str) -> bool:
     """Does this look like a single address? Used when one is typed by hand
     rather than pasted in a list. Deliberately the same rule as the bulk
@@ -60,7 +80,7 @@ def parse_roster(raw: str) -> List[RosterEntry]:
         if not name:
             name = _name_from_email(email)
 
-        out[email] = RosterEntry(name=name, email=email)
+        out[email] = RosterEntry(name=titlecase_name(name), email=email)
 
     return list(out.values())
 

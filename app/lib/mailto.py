@@ -59,6 +59,9 @@ def team_link_email(
             "other yet.",
             "",
             f"If the link ever stops working, your short code is {team_short_code}.",
+            "",
+            "Best regards,",
+            "Tryfonas Karmiris",
         ]
     )
     return subject, body
@@ -73,13 +76,17 @@ def personal_link_email(course_code: str, student_name: str, link: str) -> tuple
             f"Hi {student_name},",
             "",
             "Here is your personal page for this course. Bookmark it — it's yours "
-            "for the whole semester and lists the group link for every assignment "
-            "you're placed in:",
+            "for the whole semester, and through it you'll have access to the "
+            "weekly assignments and the group link for every assignment you're "
+            "placed in:",
             "",
             link,
             "",
             "Opening a group link from this page also means you won't be asked to "
             "pick your name from a list when you deliver or post there.",
+            "",
+            "Best regards,",
+            "Tryfonas Karmiris",
         ]
     )
     return subject, body
@@ -94,6 +101,7 @@ def change_request_outcome_email(
     lines = [f"Hi {student_name},", "", f"Your request to change groups for {assignment_title} was {verdict}."]
     if note.strip():
         lines += ["", note.strip()]
+    lines += ["", "Best regards,", "Tryfonas Karmiris"]
     return subject, "\n".join(lines)
 
 
@@ -114,6 +122,9 @@ def feedback_email(
             f"Here's some feedback on your delivery for {assignment_title}:",
             "",
             comment,
+            "",
+            "Best regards,",
+            "Tryfonas Karmiris",
         ]
     )
     return subject, body
