@@ -16,7 +16,7 @@ from app.db import db_lock, get_db
 from app.lib.auth import hash_password, record_audit
 from app.lib.format import from_date_time_local
 from app.lib.ids import generate_access_token, generate_short_code
-from app.lib.roster import is_emailish, parse_roster
+from app.lib.roster import is_emailish, parse_roster, titlecase_name
 from app.lib.settings import set_setting
 from app.lib.storage import delete_stored_file
 from app.lib.teams import copy_teams, shuffle_teams
@@ -281,7 +281,7 @@ def import_roster(admin, raw: str) -> tuple[int, int]:
 
 
 def add_student(admin, name: str, email: str) -> None:
-    name = (name or "").strip()
+    name = titlecase_name((name or "").strip())
     email = (email or "").strip().lower()
 
     if not name:
@@ -311,7 +311,7 @@ def add_student(admin, name: str, email: str) -> None:
 
 
 def update_student(admin, student_id: int, name: str, email: str) -> None:
-    name = (name or "").strip()
+    name = titlecase_name((name or "").strip())
     email = (email or "").strip().lower()
 
     if not name:
