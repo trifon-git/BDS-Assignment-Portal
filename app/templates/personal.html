@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<p class="small muted" style="text-transform:uppercase;letter-spacing:.03em;">Your page</p>
+<h1>{{ student.name }}</h1>
+<p class="muted">{{ student.email }}</p>
+<p class="small muted">This link is yours for the whole semester — bookmark it. It's the one place that lists every assignment's group link for you, and it remembers who you are when you open a group page, so you won't be asked to pick your name from a list there.</p>
+<p class="small muted">Lost this link, see the wrong name at the top, or something below looks off? Don't guess — email <a href="mailto:{{ support_email }}">{{ support_email }}</a> and it'll get sorted.</p>
+
+{% if error %}<p class="alert alert-error">{{ error }}</p>{% endif %}
+{% if requested %}<p class="alert alert-success">Your change request was sent. You'll see the outcome below once it's reviewed.</p>{% endif %}
+
+{% if rows|length == 0 %}
+  <p class="card muted" style="text-align:center;">No assignments have been published yet.</p>
+{% else %}
+  {% for row in rows %}
+    {% set a = row.assignment %}
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:start;gap:1rem;flex-wrap:wrap;">
+        <div>
+          {% if a.week_number %}<span class="tag">Week {{ a.week_number }}</span>{% endif %}
+          <h3 style="margin:0.25rem 0;">{{ a.title }}</h3>
+        </div>
+      </div>
+
+      {% if row.team %}
+        <p><a href="/t/{{ row.team.access_token }}" class="btn btn-primary">Open {{ row.team.name }}</a></p>
+
+        {% set cr = row.change_request %}
+        {% if cr and cr.status == "pending" %}
+          <p class="small alert alert-error">Change request pending review — you asked: "{{ cr.reason }}"</p>
+        {% elif cr and cr.status == "approved" %}
+          <p class="small alert alert-success">Your last change request was approved{{ ' — ' ~ cr.admin_note if cr.admin_note }}.</p>
+        {% elif cr and cr.status == "declined" %}
+          <p class="small alert alert-error">Your last change request was declined{{ ' — ' ~ cr.admin_note if cr.admin_note }}.</p>
+        {% endif %}
+
+        {% if not cr or cr.status != "pending" %}
+          <details style="margin-top:0.5rem;">
+            <summary class="small muted" style="cursor:pointer;">Request to change groups</summary>
+            <p class="small muted">Other groups aren't shown here — explain why, and an admin will pick where you go. This isn't instant: if the deadline is close, also email <a href="mailto:{{ support_email }}">{{ support_email }}</a> directly so it doesn't sit unread.</p>
+            <form method="post" action="/s/{{ token }}/request-change">
+              <input type="hidden" name="assignmentId" value="{{ a.id }}">
+              <div class="field"><textarea name="reason" rows="3" placeholder="Why would you like to change groups?" required></textarea></div>
+              <button type="submit" class="btn btn-sm">Send request</button>
+            </form>
+          </details>
+        {% endif %}
+      {% elif row.can_self_join %}
+        <p class="small muted">You're not in a group for this one yet. This assignment lets you form your own.</p>
+        <a href="/join?assignment={{ a.id }}&as={{ token }}" class="btn">Form or join a group</a>
+      {% else %}
+        <p class="small muted">You're not placed in a group for this one yet — check back closer to the deadline, or email <a href="mailto:{{ support_email }}">{{ support_email }}</a> if it's getting close and you're still not placed.</p>
+      {% endif %}
+    </div>
+  {% endfor %}
+{% endif %}
+{% endblock %}

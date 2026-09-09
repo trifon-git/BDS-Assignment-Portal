@@ -6,10 +6,14 @@
   <p class="muted">Teams are formed per assignment, so you can work with different people from one week to the next.</p>
 
   {% if assignments|length == 0 %}
-    <p class="card muted" style="text-align:center;">Nothing has been published yet.</p>
+    <p class="card muted" style="text-align:center;">
+      Nothing here yet — either nothing is published, or your course responsible is
+      placing teams themselves for every open assignment right now. Check your
+      personal link if you have one, or email <a href="mailto:{{ support_email }}">{{ support_email }}</a>.
+    </p>
   {% else %}
     {% for a in assignments %}
-      <a href="/join?assignment={{ a.id }}" class="card" style="display:flex;justify-content:space-between;align-items:center;text-decoration:none;">
+      <a href="/join?assignment={{ a.id }}{{ '&as=' ~ as_ if as_ }}" class="card" style="display:flex;justify-content:space-between;align-items:center;text-decoration:none;">
         <span>
           <strong>{{ a.title }}</strong><br>
           <span class="small muted">{{ a.due_at | format_deadline }}</span>

@@ -47,16 +47,21 @@
     <p class="small muted">Submitting again replaces everything below — files, link, video and note. If this was sent back for rework, delivering here clears that and puts it back in the review queue as a fresh submission.</p>
   {% endif %}
   <form method="post" action="/t/{{ token }}/a/{{ assignment.id }}" enctype="multipart/form-data">
-    <div class="field">
-      <label>Submitted by</label>
-      <select name="submittedBy" required>
-        <option value="">Choose your name</option>
-        {% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
-      </select>
-      <p class="small muted">Whoever clicks deliver — this is recorded so it's clear who submitted on the team's behalf.</p>
-    </div>
+    {% if current_student %}
+      <input type="hidden" name="submittedBy" value="{{ current_student.id }}">
+      <p class="small muted">Delivering as {{ current_student.name }}.</p>
+    {% else %}
+      <div class="field">
+        <label>Submitted by</label>
+        <select name="submittedBy" required>
+          <option value="">Choose your name</option>
+          {% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+        </select>
+        <p class="small muted">Whoever clicks deliver — this is recorded so it's clear who submitted on the team's behalf.</p>
+      </div>
+    {% endif %}
 
-    {% if assignment.mode == "solo" %}
+    {% if assignment.mode == "solo" and not current_student %}
       <div class="field">
         <label>Whose delivery is this?</label>
         <select name="studentId" required>
@@ -105,9 +110,10 @@
     </div>
 
     <button type="submit" class="btn btn-primary">{{ "Replace delivery" if existing else "Deliver" }}</button>
+    <p class="small muted" style="margin-top:0.5rem;">Upload stuck, wrong file type rejected, or something else not working? Email <a href="mailto:{{ support_email }}">{{ support_email }}</a> — don't just keep retrying against the deadline.</p>
   </form>
 </div>
 {% else %}
-  <p class="card muted">The deadline has passed and this assignment does not accept late deliveries.</p>
+  <p class="card muted">The deadline has passed and this assignment does not accept late deliveries. If you believe this is wrong — an extension that isn't showing, a deadline that looks off — email <a href="mailto:{{ support_email }}">{{ support_email }}</a>.</p>
 {% endif %}
 {% endblock %}

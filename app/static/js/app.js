@@ -35,6 +35,16 @@ document.addEventListener("click", (e) => {
   }
 });
 
+// A click that should record something server-side without blocking the
+// click's own default action (e.g. a mailto: link still has to open).
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-ping]");
+  if (!el) return;
+  fetch(el.getAttribute("data-ping"), { method: "POST" }).catch(() => {});
+  const marker = document.getElementById(el.getAttribute("data-ping-marker") || "");
+  if (marker) marker.classList.remove("hidden");
+});
+
 // Mark notifications seen a beat after paint, not during render, so the
 // badge doesn't clear before it was ever shown.
 const notifPing = document.querySelector("[data-notif-ping]");

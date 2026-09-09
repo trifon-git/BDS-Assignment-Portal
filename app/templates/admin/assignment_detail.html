@@ -11,9 +11,11 @@
     <a href="/api/admin/assignments/{{ assignment.id }}/download" class="btn">Download ZIP + CSV</a>
   </div>
 </div>
+<p class="small muted" style="margin-top:-0.5rem;">Edit changes the assignment itself (deadline, requirements, publish state). Download ZIP + CSV gives you every file everyone's submitted for this assignment, plus a spreadsheet summarising who delivered what and when — handy for grading offline.</p>
 
 <div class="card">
   <h3 style="margin-top:0;">Copy teams from another assignment</h3>
+  <p class="small muted">Recreates the same teams (same members) here, for this assignment only — it doesn't touch or remove the teams on the assignment you're copying from. Anyone already grouped here is left alone; this only fills in the rest.</p>
   <form method="post" action="/admin/teams/copy" class="field-row" style="align-items:end;">
     <input type="hidden" name="assignmentId" value="{{ assignment.id }}">
     <div class="field">
@@ -32,6 +34,13 @@
   </a>
   <span class="small muted">"Outstanding" means nothing delivered yet, or sent back for rework and not yet resubmitted.</span>
 </div>
+<p class="small muted">
+  <span class="state-pill state-pending">{{ state_label.pending }}</span> before the deadline &middot;
+  <span class="state-pill state-missing">{{ state_label.missing }}</span> after the deadline &middot;
+  <span class="state-pill state-delivered">{{ state_label.delivered }}</span> / <span class="state-pill state-late">{{ state_label.late }}</span> in, not reviewed yet &middot;
+  <span class="state-pill state-approved">{{ state_label.approved }}</span> reviewed, accepted &middot;
+  <span class="state-pill state-rework">{{ state_label.rework }}</span> sent back, waiting on the team.
+</p>
 
 <div class="card table-scroll">
   <table>
@@ -67,8 +76,10 @@
               <p class="small muted" style="margin-top:0.2rem;">Approve/Send back set the status the team sees. Save feedback only attaches your comment — the delivery stays in whatever state it's already in, useful for a note on something that's otherwise fine.</p>
             </form>
             <a class="btn btn-sm" href="{{ mailto_href(row.chase_emails, feedback_email(course_code, assignment.title, assignment.week_number, row.team.name, row.submission.review_comment or '')[0], feedback_email(course_code, assignment.title, assignment.week_number, row.team.name, row.submission.review_comment or '')[1]) }}">Email feedback</a>
+            <p class="small muted">Opens your mail client with the comment above pre-filled — nothing sends until you do.</p>
           {% else %}
             <a class="btn btn-sm" href="mailto:{{ row.chase_emails | join(',') }}?subject={{ (course_code ~ ' - missing delivery') | urlencode }}">Chase by email</a>
+            <p class="small muted">Opens a blank email to everyone on this team — you write the reminder.</p>
           {% endif %}
           <details style="margin-top:0.3rem;">
             <summary class="small">Extension</summary>

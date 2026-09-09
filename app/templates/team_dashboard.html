@@ -15,8 +15,16 @@
 {% if just_created %}<p class="alert alert-success">Team created! This is your page — bookmark it.</p>{% endif %}
 
 {% if cards|length == 0 %}
-  <p class="card muted" style="text-align:center;">This assignment is not published yet.</p>
+  <p class="card muted" style="text-align:center;">This assignment is not published yet. If you think that's wrong, email <a href="mailto:{{ support_email }}">{{ support_email }}</a>.</p>
 {% else %}
+  <p class="small muted">
+    <span class="state-pill state-pending">{{ state_label.pending }}</span> deadline hasn't passed, nothing in yet &middot;
+    <span class="state-pill state-missing">{{ state_label.missing }}</span> deadline passed, still nothing in &middot;
+    <span class="state-pill state-delivered">{{ state_label.delivered }}</span> in on time, awaiting review &middot;
+    <span class="state-pill state-late">{{ state_label.late }}</span> in after the deadline, awaiting review &middot;
+    <span class="state-pill state-approved">{{ state_label.approved }}</span> reviewed and accepted &middot;
+    <span class="state-pill state-rework">{{ state_label.rework }}</span> sent back — resubmit to clear it.
+  </p>
   {% for card in cards %}
     {% set a = card.assignment %}
     <div class="card">
@@ -31,7 +39,7 @@
       <p class="small muted">
         Due {{ card.deadline.effective_due_at | format_deadline }}
         ({{ card.deadline.ms_remaining | format_relative }})
-        {% if card.deadline.extended %}<span class="tag">extended</span>{% endif %}
+        {% if card.deadline.extended %}<span class="tag" title="Your course responsible moved this deadline for your team specifically — it no longer matches the assignment's normal date.">extended</span>{% endif %}
       </p>
       {% if a.mode == "solo" and card.member_rows|length > 0 %}
         <table>
@@ -48,8 +56,12 @@
       <a href="/t/{{ token }}/a/{{ a.id }}" class="btn {{ 'btn-primary' if card.deadline.can_submit else '' }}">
         {% if card.submission or card.member_rows|selectattr('submission')|list|length > 0 %}View or replace{% elif card.deadline.can_submit %}Deliver{% else %}View{% endif %}
       </a>
+      {% if card.submission or card.member_rows|selectattr('submission')|list|length > 0 %}
+        <p class="small muted" style="margin-top:0.3rem;">Delivering again replaces what's there, it doesn't add a second version.</p>
+      {% endif %}
     </div>
   {% endfor %}
+  <p class="small muted">Something not adding up on this page — wrong deadline, missing assignment, review stuck? Email <a href="mailto:{{ support_email }}">{{ support_email }}</a>.</p>
 {% endif %}
 
 <section id="forum" style="margin-top:2rem;">
@@ -86,14 +98,18 @@
 
       <form method="post" action="/t/{{ token }}/forum/post" style="margin-top:0.5rem;">
         <input type="hidden" name="parentId" value="{{ node.message.id }}">
-        <div class="field-row">
-          <div class="field">
-            <select name="authorStudentId" required>
-              <option value="">Your name</option>
-              {% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
-            </select>
+        {% if current_student %}
+          <input type="hidden" name="authorStudentId" value="{{ current_student.id }}">
+        {% else %}
+          <div class="field-row">
+            <div class="field">
+              <select name="authorStudentId" required>
+                <option value="">Your name</option>
+                {% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+              </select>
+            </div>
           </div>
-        </div>
+        {% endif %}
         <div class="field"><textarea name="body" placeholder="Reply..." rows="2"></textarea></div>
         <button type="submit" class="btn btn-sm">Reply</button>
       </form>
@@ -105,13 +121,18 @@
   <div class="card">
     <h3 style="margin-top:0;">New message</h3>
     <form method="post" action="/t/{{ token }}/forum/post">
-      <div class="field">
-        <label>Your name</label>
-        <select name="authorStudentId" required>
-          <option value="">Choose your name</option>
-          {% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
-        </select>
-      </div>
+      {% if current_student %}
+        <input type="hidden" name="authorStudentId" value="{{ current_student.id }}">
+        <p class="small muted">Posting as {{ current_student.name }}.</p>
+      {% else %}
+        <div class="field">
+          <label>Your name</label>
+          <select name="authorStudentId" required>
+            <option value="">Choose your name</option>
+            {% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
+          </select>
+        </div>
+      {% endif %}
       <div class="field"><textarea name="body" placeholder="Write something..." required></textarea></div>
       <button type="submit" class="btn btn-primary">Post</button>
     </form>

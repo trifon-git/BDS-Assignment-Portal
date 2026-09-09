@@ -64,6 +64,39 @@ def team_link_email(
     return subject, body
 
 
+def personal_link_email(course_code: str, student_name: str, link: str) -> tuple[str, str]:
+    """The message that hands one student their permanent personal link --
+    sent once, since the link doesn't change assignment to assignment."""
+    subject = f"{course_code} — Your personal assignment page"
+    body = "\n".join(
+        [
+            f"Hi {student_name},",
+            "",
+            "Here is your personal page for this course. Bookmark it — it's yours "
+            "for the whole semester and lists the group link for every assignment "
+            "you're placed in:",
+            "",
+            link,
+            "",
+            "Opening a group link from this page also means you won't be asked to "
+            "pick your name from a list when you deliver or post there.",
+        ]
+    )
+    return subject, body
+
+
+def change_request_outcome_email(
+    course_code: str, student_name: str, assignment_title: str, approved: bool, note: str
+) -> tuple[str, str]:
+    """The message an admin sends after acting on a group-change request."""
+    subject = f"{course_code} — Your group change request for {assignment_title}"
+    verdict = "approved and you've been moved to your new group" if approved else "declined"
+    lines = [f"Hi {student_name},", "", f"Your request to change groups for {assignment_title} was {verdict}."]
+    if note.strip():
+        lines += ["", note.strip()]
+    return subject, "\n".join(lines)
+
+
 def feedback_email(
     course_code: str,
     assignment_title: str,

@@ -4,6 +4,7 @@
   <a href="/admin/assignments" class="{{ 'active' if active == 'assignments' }}">Assignments</a>
   <a href="/admin/teams" class="{{ 'active' if active == 'teams' }}">Teams</a>
   <a href="/admin/students" class="{{ 'active' if active == 'students' }}">Students</a>
+  <a href="/admin/change-requests" class="{{ 'active' if active == 'change_requests' }}">Change requests{% if pending_change_requests %} <span class="badge-count">{{ pending_change_requests }}</span>{% endif %}</a>
   <a href="/admin/settings" class="{{ 'active' if active == 'settings' }}">Settings</a>
   <span data-notif-ping="/admin/notifications/seen">
     {% if notification_count and notification_count > 0 %}

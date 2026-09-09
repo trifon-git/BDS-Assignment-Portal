@@ -19,7 +19,13 @@ from app.lib.deadline import delivery_state, is_outstanding, resolve_deadline
 # rather than an actor-name prefix check: `submission.created` (a student
 # delivering) and `submission.approved` (an admin reviewing) share the
 # `submission.` prefix, so prefix-matching cannot tell them apart.
-NOTIFY_ACTIONS = ["submission.created", "submission.replaced", "forum.posted", "team.created"]
+NOTIFY_ACTIONS = [
+    "submission.created",
+    "submission.replaced",
+    "forum.posted",
+    "team.created",
+    "change_request.created",
+]
 
 
 def get_delivery_matrix(assignment: sqlite3.Row, now: Optional[int] = None) -> dict:

@@ -11,6 +11,7 @@ from app.db import get_db, run_migrations
 from app.deps import RedirectException, redirect_exception_handler
 from app.lib.admin_actions import AdminActionError
 from app.lib.auth import hash_password
+from app.lib.ids import generate_access_token
 
 app = FastAPI(title="AAU Assignment Portal")
 
@@ -33,6 +34,29 @@ def on_startup() -> None:
     print(f"[startup] database ready in {DATA_DIR}")
 
     conn = get_db()
+
+    # Every student needs a personal access token, but the migration that
+    # added the column can't mint a per-row CSPRNG value in plain SQL -- so
+    # any row still missing one (freshly migrated, or newly imported before
+    # this ran) gets one here, on every boot.
+    missing_tokens = conn.execute(
+        "SELECT id FROM students WHERE access_token IS NULL"
+    ).fetchall()
+    for row in missing_tokens:
+        for attempt in range(5):
+            try:
+                conn.execute(
+                    "UPDATE students SET access_token = ? WHERE id = ?",
+                    (generate_access_token(), row["id"]),
+                )
+                break
+            except Exception:
+                if attempt == 4:
+                    raise
+    if missing_tokens:
+        conn.commit()
+        print(f"[startup] issued personal links for {len(missing_tokens)} student(s)")
+
     existing = conn.execute("SELECT count(*) AS n FROM admins").fetchone()["n"]
     if existing > 0:
         return
@@ -58,9 +82,10 @@ def on_startup() -> None:
     print(f"[startup] created first admin account: {SEED_ADMIN_EMAIL}")
 
 
-from app.routes import admin, api, public, student  # noqa: E402
+from app.routes import admin, api, personal, public, student  # noqa: E402
 
 app.include_router(public.router)
+app.include_router(personal.router)
 app.include_router(student.router)
 app.include_router(admin.router)
 app.include_router(api.router)

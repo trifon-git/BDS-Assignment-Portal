@@ -29,13 +29,13 @@
     </div>
   </div>
   <p class="small muted" style="margin-top:-0.5rem;">
-    This is a note to yourself about who's expected to form teams for this
-    assignment — it doesn't move anyone or restrict anything by itself, and
-    <code>/join</code> stays open regardless of what's picked here.
-    <strong>Copy</strong>: you'll copy last week's teams over from the
-    Teams page. <strong>Students form their own</strong>: point them at
-    <code>/join</code>. <strong>Admin only</strong>: you build every team
-    yourself on the Teams page.
+    This controls whether <code>/join</code> (self-service team creation) is
+    open for this assignment. <strong>Students form their own</strong> is the
+    only setting that opens it — students see a "form a group" option from
+    their personal page and can pick their own members. <strong>Copy</strong>
+    and <strong>Admin only</strong> both keep <code>/join</code> closed for this
+    assignment: with Copy you carry last week's teams over from the Teams
+    page, with Admin only you build every team yourself there.
   </p>
 
   <div class="field"><label>Deadline</label><input type="datetime-local" name="dueAt" value="{{ assignment.due_at | to_dt_local if assignment else '' }}" required></div>

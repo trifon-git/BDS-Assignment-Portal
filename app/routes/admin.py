@@ -13,7 +13,11 @@ from app.lib import admin_actions as actions
 from app.lib import admin_data
 from app.lib.auth import authenticate, create_session, destroy_session, prune_sessions, record_audit
 from app.lib.forum import get_team_forum
-from app.lib.mailto import feedback_email, mailto_href, team_link_email
+from app.lib.change_requests import list_requests as list_change_requests
+from app.lib.change_requests import approve_request as approve_change_request
+from app.lib.change_requests import decline_request as decline_change_request
+from app.lib.change_requests import get_pending_count as get_pending_change_request_count
+from app.lib.mailto import change_request_outcome_email, feedback_email, mailto_href, personal_link_email, team_link_email
 from app.lib.settings import get_all_settings
 from app.lib.team_access import get_team_members
 from app.lib.teams import count_protected_teams
@@ -72,6 +76,7 @@ def _admin_ctx(admin) -> dict:
     return {
         "admin": admin,
         "notification_count": admin_data.get_notification_count(seen_at),
+        "pending_change_requests": get_pending_change_request_count(),
     }
 
 
@@ -215,6 +220,7 @@ def students_page(
     single: Optional[str] = None,
 ):
     roster = admin_data.get_roster()
+    settings = get_all_settings()
     return render(
         request,
         "admin/students.html",
@@ -224,6 +230,9 @@ def students_page(
         added=added,
         skipped=skipped,
         single=bool(single),
+        course_code=settings["course_code"],
+        personal_link_email=personal_link_email,
+        mailto_href=mailto_href,
     )
 
 
@@ -262,6 +271,48 @@ async def students_active(request: Request, admin=Depends(require_admin)):
     form = await request.form()
     actions.set_student_active(admin, int(form.get("studentId")), form.get("active") == "on")
     return RedirectResponse("/admin/students", status_code=303)
+
+
+@router.post("/students/{student_id}/link-sent")
+def students_link_sent(student_id: int, admin=Depends(require_admin)):
+    actions.mark_link_sent(student_id)
+    return Response(status_code=204)
+
+
+# -----------------------------------------------------------------------------
+# Group-change requests
+# -----------------------------------------------------------------------------
+
+
+@router.get("/change-requests")
+def change_requests_page(request: Request, admin=Depends(require_admin), status: Optional[str] = None):
+    settings = get_all_settings()
+    requests_ = list_change_requests(status)
+    return render(
+        request,
+        "admin/change_requests.html",
+        **_admin_ctx(admin),
+        requests=requests_,
+        status_filter=status or "pending",
+        course_code=settings["course_code"],
+        change_request_outcome_email=change_request_outcome_email,
+        mailto_href=mailto_href,
+    )
+
+
+@router.post("/change-requests/{request_id}/approve")
+async def change_request_approve(request: Request, request_id: int, admin=Depends(require_admin)):
+    form = await request.form()
+    target_team_id = int(form.get("targetTeamId"))
+    approve_change_request(admin, request_id, target_team_id, str(form.get("note") or ""))
+    return RedirectResponse("/admin/change-requests", status_code=303)
+
+
+@router.post("/change-requests/{request_id}/decline")
+async def change_request_decline(request: Request, request_id: int, admin=Depends(require_admin)):
+    form = await request.form()
+    decline_change_request(admin, request_id, str(form.get("note") or ""))
+    return RedirectResponse("/admin/change-requests", status_code=303)
 
 
 # -----------------------------------------------------------------------------

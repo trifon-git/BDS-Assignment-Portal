@@ -23,7 +23,7 @@
     <input type="hidden" name="assignmentId" value="{{ assignment.id }}">
     <div class="field">
       <label>Group size</label>
-      <select name="preferred">
+      <select name="preferred" title="A target the shuffle aims for, not a hard cap -- the last group may come out a member short or over so nobody is left out.">
         <option value="2">2</option><option value="3">3</option>
         <option value="4" selected>3-4</option><option value="5">5</option>
         <option value="6">6</option><option value="7">7</option><option value="8">8</option>
@@ -58,6 +58,7 @@
       <select name="members" multiple size="6">
         {% for r in roster %}<option value="{{ r.student.id }}">{{ r.student.name }}{{ " (" ~ r.team.name ~ ")" if r.team }}</option>{% endfor %}
       </select>
+      <p class="small muted">Ctrl/Cmd-click to pick several. Picking someone already shown with a team name here moves them off that team onto this new one.</p>
     </div>
     <button type="submit" class="btn btn-primary">Create</button>
   </form>
@@ -78,10 +79,10 @@
         </form>
         <form method="post" action="/admin/teams/regenerate" data-confirm="Rotate this team's link and code? The old link stops working immediately.">
           <input type="hidden" name="teamId" value="{{ t.team.id }}">
-          <button type="submit" class="btn btn-sm">Regenerate link</button>
+          <button type="submit" class="btn btn-sm" title="Use this if the link or code leaked, or a wrong person got hold of it. The old one dies immediately -- reshare the new one with the actual team.">Regenerate link</button>
         </form>
         {% set members_names = t.members | map(attribute='name') | list %}
-        <a class="btn btn-sm" href="{{ mailto_href(t.members | map(attribute='email') | list, team_link_email(course_code, assignment.title, assignment.week_number, assignment.due_at, t.team.name, t.team.short_code, members_names, request.url_for('dashboard', token=t.team.access_token) | string)[0], team_link_email(course_code, assignment.title, assignment.week_number, assignment.due_at, t.team.name, t.team.short_code, members_names, request.url_for('dashboard', token=t.team.access_token) | string)[1]) }}">Email link</a>
+        <a class="btn btn-sm" href="{{ mailto_href(t.members | map(attribute='email') | list, team_link_email(course_code, assignment.title, assignment.week_number, assignment.due_at, t.team.name, t.team.short_code, members_names, request.url_for('dashboard', token=t.team.access_token) | string)[0], team_link_email(course_code, assignment.title, assignment.week_number, assignment.due_at, t.team.name, t.team.short_code, members_names, request.url_for('dashboard', token=t.team.access_token) | string)[1]) }}" title="Opens a pre-filled email to every member with their team link and code -- nothing sends until you do.">Email link</a>
         <form method="post" action="/admin/teams/delete" data-confirm="Delete this team? Any submissions and files are removed too.">
           <input type="hidden" name="teamId" value="{{ t.team.id }}">
           <button type="submit" class="btn btn-sm btn-danger">Delete team</button>

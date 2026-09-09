@@ -89,10 +89,17 @@ def get_unassigned_students(assignment_id: int) -> List[sqlite3.Row]:
 
 
 def get_open_assignments() -> List[sqlite3.Row]:
-    """Every published assignment a student could still be forming a team for."""
+    """Published assignments a student can still self-form a team for.
+
+    Only `grouping = 'students'` assignments qualify -- self-service team
+    creation is opt-in per assignment, set by the admin in the assignment
+    form. For `admin` or `copy` grouping, teams are placed by the admin and
+    this flow is not offered.
+    """
     conn = get_db()
     return conn.execute(
-        "SELECT * FROM assignments WHERE published_at IS NOT NULL ORDER BY due_at"
+        "SELECT * FROM assignments WHERE published_at IS NOT NULL AND grouping = 'students' "
+        "ORDER BY due_at"
     ).fetchall()
 
 
