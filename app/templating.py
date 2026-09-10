@@ -11,12 +11,14 @@ from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 
+from app.config import APP_VERSION
 from app.lib import deadline as deadline_lib
 from app.lib.format import format_date, format_deadline, format_time, to_date_time_local
 from app.lib.settings import get_all_settings
 from app.lib.storage import format_bytes
 
 templates = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+templates.env.globals["app_version"] = APP_VERSION
 templates.env.filters["format_deadline"] = format_deadline
 templates.env.filters["format_date"] = format_date
 templates.env.filters["format_time"] = format_time
