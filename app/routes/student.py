@@ -16,7 +16,8 @@ from app.lib.identity import get_current_student
 from app.lib.storage import UploadTooLargeError, extension_allowed, store_upload
 from app.lib.submit import SubmitInput, requirement_summary, submit_delivery
 from app.lib.team_access import assert_membership, get_team_by_token
-from app.templating import render
+from app.templating import render, templates
+from starlette.responses import HTMLResponse
 
 router = APIRouter(prefix="/t/{token}")
 
@@ -161,6 +162,27 @@ async def submit(request: Request, token: str, assignment_id: int):
 
 
 # -- forum --------------------------------------------------------------------
+
+
+@router.get("/forum/fragment")
+def forum_fragment(request: Request, token: str):
+    """Just the message list, polled from the dashboard so a new post from a
+    teammate shows up without anyone hitting refresh. Same partial the full
+    page renders, so there is exactly one place that knows what a thread
+    looks like."""
+    ctx = _load(token)
+    if not ctx:
+        return HTMLResponse(status_code=404)
+
+    forum = get_team_forum(ctx.team["id"])
+    html = templates.get_template("partials/forum_messages.html").render(
+        request=request,
+        forum=forum,
+        token=token,
+        members=ctx.members,
+        current_student=_identity_for(request, ctx),
+    )
+    return HTMLResponse(html)
 
 
 @router.post("/forum/post")

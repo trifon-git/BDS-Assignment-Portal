@@ -69,54 +69,10 @@
   <p class="small muted">Use this to organize your work — who's doing what, when you're meeting, questions about the brief. Handy if you don't know each other yet; not required reading if you've already sorted it out elsewhere.</p>
   {% if forum_error %}<p class="alert alert-error">{{ forum_error }}</p>{% endif %}
 
-  {% for node in forum %}
-    <div class="forum-thread">
-      <p class="forum-meta">{{ node.message.author_name }} &middot; {{ node.message.created_at | format_time }} {{ "(edited)" if node.message.edited_at }}</p>
-      {% if node.message.deleted_at %}
-        <p class="muted"><em>Message deleted.</em></p>
-      {% else %}
-        <p>{{ node.message.body }}</p>
-        <form method="post" action="/t/{{ token }}/forum/delete" class="inline" data-confirm="Delete this message?">
-          <input type="hidden" name="messageId" value="{{ node.message.id }}">
-          <button type="submit" class="btn btn-sm">Delete</button>
-        </form>
-      {% endif %}
-      {% for reply in node.replies %}
-        <div class="forum-reply">
-          <p class="forum-meta">{{ reply.author_name }} &middot; {{ reply.created_at | format_time }} {{ "(edited)" if reply.edited_at }}</p>
-          {% if reply.deleted_at %}
-            <p class="muted"><em>Message deleted.</em></p>
-          {% else %}
-            <p>{{ reply.body }}</p>
-            <form method="post" action="/t/{{ token }}/forum/delete" class="inline" data-confirm="Delete this message?">
-              <input type="hidden" name="messageId" value="{{ reply.id }}">
-              <button type="submit" class="btn btn-sm">Delete</button>
-            </form>
-          {% endif %}
-        </div>
-      {% endfor %}
-
-      <form method="post" action="/t/{{ token }}/forum/post" style="margin-top:0.5rem;">
-        <input type="hidden" name="parentId" value="{{ node.message.id }}">
-        {% if current_student %}
-          <input type="hidden" name="authorStudentId" value="{{ current_student.id }}">
-        {% else %}
-          <div class="field-row">
-            <div class="field">
-              <select name="authorStudentId" required>
-                <option value="">Your name</option>
-                {% for m in members %}<option value="{{ m.id }}">{{ m.name }}</option>{% endfor %}
-              </select>
-            </div>
-          </div>
-        {% endif %}
-        <div class="field"><textarea name="body" placeholder="Reply..." rows="2"></textarea></div>
-        <button type="submit" class="btn btn-sm">Reply</button>
-      </form>
-    </div>
-  {% else %}
-    <p class="muted">No messages yet. Start the conversation below.</p>
-  {% endfor %}
+  <div id="forum-messages" data-forum-poll="/t/{{ token }}/forum/fragment">
+    {% include "partials/forum_messages.html" %}
+  </div>
+  <p class="small muted">New messages from your teammates show up here on their own — no need to refresh.</p>
 
   <div class="card">
     <h3 style="margin-top:0;">New message</h3>
