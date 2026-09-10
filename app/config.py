@@ -31,7 +31,7 @@ TIMEZONE = os.environ.get("TIMEZONE") or "Europe/Copenhagen"
 # Bumped by hand with every deploy that changes admin- or student-facing
 # behavior, so a screenshot or a support email can be pinned to a build
 # without digging through git log. Shown in the admin nav footer.
-APP_VERSION = "1.2"
+APP_VERSION = "1.3"
 
 IS_PRODUCTION = os.environ.get("ENVIRONMENT", "production") == "production"
 
