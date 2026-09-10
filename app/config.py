@@ -28,6 +28,11 @@ SEED_ADMIN_NAME = os.environ.get("ADMIN_NAME") or "Course responsible"
 
 TIMEZONE = os.environ.get("TIMEZONE") or "Europe/Copenhagen"
 
+# Bumped by hand with every deploy that changes admin- or student-facing
+# behavior, so a screenshot or a support email can be pinned to a build
+# without digging through git log. Shown in the admin nav footer.
+APP_VERSION = "1.2"
+
 IS_PRODUCTION = os.environ.get("ENVIRONMENT", "production") == "production"
 
 # Defaults for the settings table; admin-editable at /admin/settings.
