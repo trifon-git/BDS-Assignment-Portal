@@ -6,11 +6,10 @@
   <a href="/admin/students" class="{{ 'active' if active == 'students' }}">Students</a>
   <a href="/admin/change-requests" class="{{ 'active' if active == 'change_requests' }}">Change requests{% if pending_change_requests %} <span class="badge-count">{{ pending_change_requests }}</span>{% endif %}</a>
   <a href="/admin/settings" class="{{ 'active' if active == 'settings' }}">Settings</a>
-  <span data-notif-ping="/admin/notifications/seen">
-    {% if notification_count and notification_count > 0 %}
-      <span class="badge-count">{{ notification_count }}</span>
-    {% endif %}
-  </span>
+  <a href="/admin/notifications" class="{{ 'active' if active == 'notifications' }}" title="New deliveries, forum posts, teams and group-change requests, kept here until you check them.">
+    Notifications
+    {% if notification_count and notification_count > 0 %}<span class="badge-count">{{ notification_count }}</span>{% endif %}
+  </a>
   <form method="post" action="/admin/logout" class="inline">
     <button type="submit" class="btn btn-sm" style="background:transparent;border-color:rgba(255,255,255,.4);color:#fff;">Sign out</button>
   </form>
