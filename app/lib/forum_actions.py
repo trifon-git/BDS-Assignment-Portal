@@ -77,7 +77,10 @@ def post_message(
         action="forum.posted",
         actor_name=member["name"],
         team_id=ctx.team["id"],
-        detail="reply" if resolved_parent_id else "new thread",
+        # The comment itself, not just "reply"/"new thread" -- so an admin
+        # reading the notifications list sees what was actually said without
+        # having to open the team's forum separately.
+        detail=f"{'Reply' if resolved_parent_id else 'New thread'}: {body}",
         ip=ip,
     )
     return None

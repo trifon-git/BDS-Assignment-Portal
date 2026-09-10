@@ -102,10 +102,24 @@ def overview(request: Request, admin=Depends(require_admin)):
     )
 
 
-@router.post("/notifications/seen")
-def notifications_seen(admin=Depends(require_admin)):
+@router.get("/notifications")
+def notifications_page(request: Request, admin=Depends(require_admin)):
+    seen_at = admin["notifications_seen_at"]
+    rows = admin_data.get_notifications()
+    # Visiting this page is what clears the badge -- not loading some other
+    # admin page in the background, so nothing gets marked read without
+    # actually being looked at.
     actions.mark_notifications_seen(admin["id"])
-    return Response(status_code=204)
+
+    ctx = _admin_ctx(admin)
+    ctx["notification_count"] = 0
+    return render(
+        request,
+        "admin/notifications.html",
+        **ctx,
+        notifications=rows,
+        seen_at=seen_at or 0,
+    )
 
 
 # -----------------------------------------------------------------------------

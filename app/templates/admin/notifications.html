@@ -1,0 +1,30 @@
+{% extends "admin/_base.html" %}
+{% set active = "notifications" %}
+{% block content %}
+<h1>Notifications</h1>
+<p class="small muted">New deliveries, forum messages, teams being formed, and group-change requests — kept here so you can catch up whenever, not just the moment they happen. Opening this page is what clears the badge in the nav.</p>
+
+{% if notifications|length == 0 %}
+  <p class="card muted" style="text-align:center;">Nothing yet.</p>
+{% else %}
+  <div class="card table-scroll">
+    <table>
+      <tr><th>When</th><th>What</th><th>Who</th><th>Detail</th><th></th></tr>
+      {% for n in notifications %}
+        <tr>
+          <td class="small muted" style="white-space:nowrap;">{{ n.created_at | format_deadline }}</td>
+          <td class="small">
+            {{ notification_labels.get(n.action, n.action) }}
+            {% if n.created_at > seen_at %}<span class="tag">new</span>{% endif %}
+          </td>
+          <td class="small">{{ n.actor_name or "—" }}</td>
+          <td class="small" style="white-space:pre-wrap;max-width:28rem;">{{ n.detail or "—" }}</td>
+          <td class="small">
+            {% if n.team_id %}<a href="/admin/teams/{{ n.team_id }}/forum">Open team</a>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endif %}
+{% endblock %}

@@ -1,6 +1,6 @@
 // Small progressive-enhancement helpers. Every form still works with JS
-// disabled -- this only adds confirmations, a copy button, and the
-// notification-seen ping.
+// disabled -- this only adds confirmations, a copy button, live forum
+// polling, and a generic click-to-record ping.
 
 document.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-confirm]");
@@ -65,13 +65,4 @@ if (forumPoll) {
       })
       .catch(() => {});
   }, 4000);
-}
-
-// Mark notifications seen a beat after paint, not during render, so the
-// badge doesn't clear before it was ever shown.
-const notifPing = document.querySelector("[data-notif-ping]");
-if (notifPing) {
-  setTimeout(() => {
-    fetch(notifPing.getAttribute("data-notif-ping"), { method: "POST" }).catch(() => {});
-  }, 800);
 }

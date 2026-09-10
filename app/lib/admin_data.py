@@ -27,6 +27,14 @@ NOTIFY_ACTIONS = [
     "change_request.created",
 ]
 
+NOTIFICATION_LABELS = {
+    "submission.created": "New delivery",
+    "submission.replaced": "Delivery replaced",
+    "forum.posted": "Forum message",
+    "team.created": "Team created",
+    "change_request.created": "Group change requested",
+}
+
 
 def get_delivery_matrix(assignment: sqlite3.Row, now: Optional[int] = None) -> dict:
     now = now if now is not None else int(time.time() * 1000)
@@ -434,6 +442,21 @@ def get_notification_count(seen_at: Optional[int]) -> int:
         (*NOTIFY_ACTIONS, seen_at or 0),
     ).fetchone()
     return row["n"]
+
+
+def get_notifications(limit: int = 200) -> List[sqlite3.Row]:
+    """The persistent notification feed -- every notify-worthy event, newest
+    first, kept regardless of whether it's been "seen". Read separately from
+    `get_notification_count` so viewing this list is the only thing that
+    clears the badge; scrolling past an event on some other page never does.
+    """
+    conn = get_db()
+    placeholders = ",".join("?" for _ in NOTIFY_ACTIONS)
+    return conn.execute(
+        f"SELECT * FROM audit_log WHERE action IN ({placeholders}) "
+        f"ORDER BY created_at DESC LIMIT ?",
+        (*NOTIFY_ACTIONS, limit),
+    ).fetchall()
 
 
 def get_recent_activity(limit: int = 20) -> List[sqlite3.Row]:
