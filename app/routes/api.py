@@ -70,21 +70,26 @@ def _build_index_html(assignment_title: str, rows: list[dict]) -> str:
     title = html.escape(assignment_title)
     body_rows = []
     for row in rows:
-        links = []
-        for name, rel_path in row["files"]:
-            links.append(f'<a href="{html.escape(rel_path)}">{html.escape(name)}</a>')
-        if row["link_url"]:
-            links.append(f'<a href="{html.escape(row["link_url"])}" target="_blank" rel="noopener">code link</a>')
-        if row["video_url"]:
-            links.append(f'<a href="{html.escape(row["video_url"])}" target="_blank" rel="noopener">video</a>')
-        links_html = "<br>".join(links) if links else "—"
+        files_html = "<br>".join(
+            f'<a href="{html.escape(rel_path)}">{html.escape(name)}</a>' for name, rel_path in row["files"]
+        ) or "—"
+        exercise_html = (
+            f'<a href="{html.escape(row["link_url"])}" target="_blank" rel="noopener">code link</a>'
+            if row["link_url"] else "—"
+        )
+        video_html = (
+            f'<a href="{html.escape(row["video_url"])}" target="_blank" rel="noopener">video</a>'
+            if row["video_url"] else "—"
+        )
         late = " (late)" if row["is_late"] else ""
         body_rows.append(
             "<tr>"
             f"<td>{html.escape(row['team'])}</td>"
             f"<td>{html.escape(row['status'])}{late}</td>"
             f"<td>{html.escape(format_deadline(row['submitted_at']) if row['submitted_at'] else '')}</td>"
-            f"<td>{links_html}</td>"
+            f"<td>{files_html}</td>"
+            f"<td>{exercise_html}</td>"
+            f"<td>{video_html}</td>"
             f"<td>{html.escape(row['note'] or '')}</td>"
             "</tr>"
         )
@@ -107,8 +112,8 @@ def _build_index_html(assignment_title: str, rows: list[dict]) -> str:
 <h1>{title} — deliverables</h1>
 <p>Open this file straight from the unzipped folder. Local files link relative to here; code/video links open online.</p>
 <table>
-  <tr><th>Team</th><th>Status</th><th>Submitted</th><th>Links</th><th>Note</th></tr>
-  {"".join(body_rows) or '<tr><td colspan="5">Nothing submitted yet.</td></tr>'}
+  <tr><th>Team</th><th>Status</th><th>Submitted</th><th>Files</th><th>Exercise</th><th>Video</th><th>Note</th></tr>
+  {"".join(body_rows) or '<tr><td colspan="7">Nothing submitted yet.</td></tr>'}
 </table>
 </body>
 </html>
