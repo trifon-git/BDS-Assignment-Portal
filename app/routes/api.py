@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import html
 import io
 import zipfile
 
@@ -60,6 +61,59 @@ def serve_file(request: Request, stored_name: str, token: str | None = None):
     )
 
 
+def _build_index_html(assignment_title: str, rows: list[dict]) -> str:
+    """A standalone index for graders who'd rather double-click a file than
+    open a spreadsheet — same data as summary.csv, but with working links
+    (local files relative to this file's own position in the zip, video/code
+    links opening in a browser)."""
+    title = html.escape(assignment_title)
+    body_rows = []
+    for row in rows:
+        links = []
+        for name, rel_path in row["files"]:
+            links.append(f'<a href="{html.escape(rel_path)}">{html.escape(name)}</a>')
+        if row["link_url"]:
+            links.append(f'<a href="{html.escape(row["link_url"])}" target="_blank" rel="noopener">code link</a>')
+        if row["video_url"]:
+            links.append(f'<a href="{html.escape(row["video_url"])}" target="_blank" rel="noopener">video</a>')
+        links_html = "<br>".join(links) if links else "—"
+        late = " (late)" if row["is_late"] else ""
+        body_rows.append(
+            "<tr>"
+            f"<td>{html.escape(row['team'])}</td>"
+            f"<td>{html.escape(row['status'])}{late}</td>"
+            f"<td>{html.escape(row['submitted_at'] or '')}</td>"
+            f"<td>{links_html}</td>"
+            f"<td>{html.escape(row['note'] or '')}</td>"
+            "</tr>"
+        )
+
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{title} — deliverables</title>
+<style>
+  body {{ font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 2rem; color: #1a1c29; }}
+  h1 {{ font-size: 1.3rem; }}
+  table {{ border-collapse: collapse; width: 100%; margin-top: 1rem; }}
+  th, td {{ border: 1px solid #dfe2ee; padding: 0.5rem 0.7rem; text-align: left; vertical-align: top; font-size: 0.92rem; }}
+  th {{ background: #f6f7fb; }}
+  a {{ color: #2c5cf5; }}
+</style>
+</head>
+<body>
+<h1>{title} — deliverables</h1>
+<p>Open this file straight from the unzipped folder. Local files link relative to here; code/video links open online.</p>
+<table>
+  <tr><th>Team</th><th>Status</th><th>Submitted</th><th>Links</th><th>Note</th></tr>
+  {"".join(body_rows) or '<tr><td colspan="5">Nothing submitted yet.</td></tr>'}
+</table>
+</body>
+</html>
+"""
+
+
 @router.get("/api/admin/assignments/{assignment_id}/download")
 def download_assignment(assignment_id: int, admin=Depends(require_admin)):
     conn = get_db()
@@ -79,6 +133,8 @@ def download_assignment(assignment_id: int, admin=Depends(require_admin)):
         writer = csv.writer(csv_buffer)
         writer.writerow(["team", "status", "is_late", "submitted_at", "video_url", "link_url", "note"])
 
+        index_rows = []
+
         for submission in submissions:
             team = team_by_id.get(submission["team_id"])
             team_name = team["name"] if team else str(submission["team_id"])
@@ -94,6 +150,7 @@ def download_assignment(assignment_id: int, admin=Depends(require_admin)):
                 ]
             )
 
+            file_links = []
             files = conn.execute(
                 "SELECT * FROM submission_files WHERE submission_id = ?", (submission["id"],)
             ).fetchall()
@@ -104,8 +161,26 @@ def download_assignment(assignment_id: int, admin=Depends(require_admin)):
                     continue
                 if path.exists():
                     zf.write(path, arcname=f"{team_name}/{f['original_name']}")
+                    file_links.append((f["original_name"], f"{team_name}/{f['original_name']}"))
+
+            index_rows.append(
+                {
+                    "team": team_name,
+                    "status": submission["status"],
+                    "is_late": submission["is_late"],
+                    "submitted_at": submission["submitted_at"],
+                    "video_url": submission["video_url"],
+                    "link_url": submission["link_url"],
+                    "note": submission["note"],
+                    "files": file_links,
+                }
+            )
 
         zf.writestr("summary.csv", csv_buffer.getvalue())
+        zf.writestr(
+            "index.html",
+            _build_index_html(assignment["title"], index_rows),
+        )
 
     buffer.seek(0)
     filename = f"{assignment['title'].replace('/', '-')}.zip"
