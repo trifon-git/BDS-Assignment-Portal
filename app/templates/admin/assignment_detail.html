@@ -43,8 +43,8 @@
 </p>
 
 <div class="card table-scroll">
-  <table>
-    <tr><th>Team / Student</th><th>Members</th><th>Status</th><th>Submitted</th><th>Files</th><th>Actions</th></tr>
+  <table style="min-width:1100px;">
+    <tr><th>Team / Student</th><th>Members</th><th>Status</th><th>Submitted</th><th>Files</th><th>Exercise</th><th>Video</th><th>Note</th><th>Actions</th></tr>
     {% for row in rows %}
       <tr>
         <td>
@@ -59,10 +59,15 @@
             {% for f in row.submission.files %}
               <div><a href="/api/files/{{ f.stored_name }}">{{ f.original_name }}</a> ({{ f.size_bytes | format_bytes }})</div>
             {% endfor %}
-            {% if row.submission.link_url %}<div><a href="{{ row.submission.link_url }}" target="_blank" rel="noopener">code link</a></div>{% endif %}
-            {% if row.submission.video_url %}<div><a href="{{ row.submission.video_url }}" target="_blank" rel="noopener">video</a></div>{% endif %}
           {% endif %}
         </td>
+        <td class="small">
+          {% if row.submission and row.submission.link_url %}<a href="{{ row.submission.link_url }}" target="_blank" rel="noopener">code link</a>{% else %}—{% endif %}
+        </td>
+        <td class="small">
+          {% if row.submission and row.submission.video_url %}<a href="{{ row.submission.video_url }}" target="_blank" rel="noopener">video</a>{% else %}—{% endif %}
+        </td>
+        <td class="small">{{ row.submission.note if row.submission and row.submission.note else "—" }}</td>
         <td>
           {% if row.submission %}
             <form method="post" action="/admin/review" style="margin-bottom:0.3rem;">
@@ -95,7 +100,7 @@
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="6" class="muted">Nothing to show.</td></tr>
+      <tr><td colspan="9" class="muted">Nothing to show.</td></tr>
     {% endfor %}
   </table>
 </div>
