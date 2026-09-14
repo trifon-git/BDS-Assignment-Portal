@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --aau-blue: #1b1f5c;
   --aau-blue-dark: #12153f;
   --bg: #f6f7fb;
@@ -8,6 +9,7 @@
   --muted: #656a7c;
   --accent: #2c5cf5;
   --accent-dark: #1e44c4;
+  --input-bg: #ffffff;
 
   --status-pending-bg: #eef0f7;
   --status-pending: #4c526b;
@@ -21,6 +23,22 @@
   --status-approved: #0b5fae;
   --status-rework-bg: #fdeceb;
   --status-rework: #b8281a;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #14151c;
+  --card: #1c1e28;
+  --border: #2c2f3d;
+  --text: #eceef5;
+  --muted: #9195a8;
+  --input-bg: #22242f;
+  --status-pending-bg: #262838;
+  --status-missing-bg: #3a2320;
+  --status-delivered-bg: #17301f;
+  --status-late-bg: #362a12;
+  --status-approved-bg: #14293c;
+  --status-rework-bg: #3a2320;
 }
 
 * { box-sizing: border-box; }
@@ -86,7 +104,7 @@ h3 { font-size: 1.05rem; margin: 0 0 0.5rem; }
   align-items: center;
   gap: 0.4rem;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--input-bg);
   color: var(--text);
   padding: 0.45rem 0.9rem;
   border-radius: 7px;
@@ -94,7 +112,21 @@ h3 { font-size: 1.05rem; margin: 0 0 0.5rem; }
   font-size: 0.9rem;
   text-decoration: none;
 }
-.btn:hover { background: #f0f1f7; }
+.btn:hover { background: var(--status-pending-bg); }
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(255,255,255,0.4);
+  background: transparent;
+  color: #fff;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.theme-toggle:hover { background: rgba(255,255,255,0.12); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn-primary:hover { background: var(--accent-dark); }
 .btn-danger { background: #fff; border-color: #e0a29c; color: #b8281a; }
@@ -113,7 +145,7 @@ input[type=datetime-local], input[type=url], select, textarea {
   border-radius: 6px;
   font-size: 0.92rem;
   font-family: inherit;
-  background: #fff;
+  background: var(--input-bg);
   color: var(--text);
 }
 textarea { min-height: 6rem; resize: vertical; }
@@ -158,7 +190,7 @@ th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: u
 .stat-box .n { font-size: 1.5rem; font-weight: 700; }
 .stat-box .l { font-size: 0.78rem; color: var(--muted); }
 
-.forum-thread { border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem; background: #fff; }
+.forum-thread { border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem; background: var(--card); }
 .forum-reply { margin-left: 1.5rem; margin-top: 0.5rem; padding-left: 0.75rem; border-left: 2px solid var(--border); }
 .forum-meta { font-size: 0.78rem; color: var(--muted); }
 
@@ -172,12 +204,14 @@ th { color: var(--muted); font-weight: 600; font-size: 0.8rem; text-transform: u
 footer.site { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 2rem 1rem; }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #14151c;
     --card: #1c1e28;
     --border: #2c2f3d;
     --text: #eceef5;
     --muted: #9195a8;
+    --input-bg: #22242f;
     --status-pending-bg: #262838;
     --status-missing-bg: #3a2320;
     --status-delivered-bg: #17301f;
@@ -185,7 +219,4 @@ footer.site { text-align: center; color: var(--muted); font-size: 0.8rem; paddin
     --status-approved-bg: #14293c;
     --status-rework-bg: #3a2320;
   }
-  input, select, textarea, .card, .btn { background: #22242f; color: var(--text); }
-  .btn { background: #22242f; }
-  .btn-primary { background: var(--accent); }
 }

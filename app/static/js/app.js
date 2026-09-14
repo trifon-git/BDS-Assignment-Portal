@@ -2,6 +2,27 @@
 // disabled -- this only adds confirmations, a copy button, live forum
 // polling, and a generic click-to-record ping.
 
+// Dark/light mode toggle. Absence of a stored preference means "follow OS",
+// handled purely by the CSS prefers-color-scheme block.
+const themeToggle = document.querySelector("[data-theme-toggle]");
+function currentTheme() {
+  const stored = localStorage.getItem("theme");
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+function paintToggle() {
+  if (themeToggle) themeToggle.textContent = currentTheme() === "dark" ? "☀️" : "🌙";
+}
+if (themeToggle) {
+  paintToggle();
+  themeToggle.addEventListener("click", () => {
+    const next = currentTheme() === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    localStorage.setItem("theme", next);
+    paintToggle();
+  });
+}
+
 document.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-confirm]");
   if (btn && !confirm(btn.getAttribute("data-confirm"))) {

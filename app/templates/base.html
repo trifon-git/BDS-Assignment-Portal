@@ -6,12 +6,18 @@
   <meta name="robots" content="noindex, nofollow">
   <title>{% block title %}{{ semester_name or "AAU Assignment Portal" }}{% endblock %}</title>
   <link rel="stylesheet" href="/static/css/app.css">
+  <script>
+    (function () {
+      var t = localStorage.getItem("theme");
+      if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+    })();
+  </script>
 </head>
 <body>
   {% block topbar %}
   <div class="topbar">
     <a class="brand" href="/">{{ semester_name or "AAU Assignment Portal" }}</a>
-    <nav>{% block nav %}{% endblock %}</nav>
+    <nav>{% block nav %}{% endblock %}<button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">🌙</button></nav>
   </div>
   {% endblock %}
   <div class="container{% block container_class %}{% endblock %}">
