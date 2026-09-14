@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response, StreamingRes
 
 from app.db import get_db
 from app.deps import get_current_admin, require_admin
+from app.lib.format import format_deadline
 from app.lib.storage import resolve_stored_path
 
 router = APIRouter()
@@ -82,7 +83,7 @@ def _build_index_html(assignment_title: str, rows: list[dict]) -> str:
             "<tr>"
             f"<td>{html.escape(row['team'])}</td>"
             f"<td>{html.escape(row['status'])}{late}</td>"
-            f"<td>{html.escape(row['submitted_at'] or '')}</td>"
+            f"<td>{html.escape(format_deadline(row['submitted_at']) if row['submitted_at'] else '')}</td>"
             f"<td>{links_html}</td>"
             f"<td>{html.escape(row['note'] or '')}</td>"
             "</tr>"
