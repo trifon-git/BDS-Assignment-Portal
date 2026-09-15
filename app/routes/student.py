@@ -149,6 +149,7 @@ async def submit(request: Request, token: str, assignment_id: int):
         video_share_confirmed=form.get("videoShareConfirmed") == "on",
         link_url=str(form.get("linkUrl") or ""),
         note=str(form.get("note") or ""),
+        extra_links=[str(v) for v in form.getlist("extraLinks") if str(v).strip()],
         files=stored_files,
         rejected=rejected,
         keep_existing_files=form.get("keepExistingFiles") == "on",

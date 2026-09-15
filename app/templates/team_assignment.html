@@ -30,6 +30,7 @@
     </ul>
   {% endif %}
   {% if existing.link_url %}<p>Code link: <a href="{{ existing.link_url }}" target="_blank" rel="noopener">{{ existing.link_url }}</a></p>{% endif %}
+  {% for l in existing.links %}<p>Link: <a href="{{ l.url }}" target="_blank" rel="noopener">{{ l.url }}</a></p>{% endfor %}
   {% if existing.video_url %}<p>Video: <a href="{{ existing.video_url }}" target="_blank" rel="noopener">{{ existing.video_url }}</a></p>{% endif %}
   {% if existing.note %}<p class="small">Note: {{ existing.note }}</p>{% endif %}
   {% if existing.review_comment %}
@@ -89,6 +90,28 @@
         <p class="small muted">A link is enough on its own — you don't need both a file and a link, unless the assignment asks for it.</p>
       </div>
     {% endif %}
+
+    <div class="field">
+      <label>Extra links (repo, live app, demo, etc.)</label>
+      <div id="extra-links">
+        {% if existing and existing.links %}
+          {% for l in existing.links %}
+            <div class="extra-link-row" style="display:flex;gap:0.5rem;margin-bottom:0.4rem;">
+              <input type="url" name="extraLinks" placeholder="https://..." value="{{ l.url }}" style="flex:1;">
+              <button type="button" class="btn" onclick="this.parentElement.remove()">Remove</button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+      <button type="button" class="btn" onclick="
+        const row = document.createElement('div');
+        row.className = 'extra-link-row';
+        row.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.4rem;';
+        row.innerHTML = '<input type=&quot;url&quot; name=&quot;extraLinks&quot; placeholder=&quot;https://...&quot; style=&quot;flex:1;&quot;><button type=&quot;button&quot; class=&quot;btn&quot; onclick=&quot;this.parentElement.remove()&quot;>Remove</button>';
+        document.getElementById('extra-links').appendChild(row);
+      ">Add another link</button>
+      <p class="small muted">Use this for anything besides your main code link — a live deployment, a second repo, a design doc, etc.</p>
+    </div>
 
     {% if assignment.requires_video %}
       <div class="field">

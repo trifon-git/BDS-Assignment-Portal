@@ -25,6 +25,22 @@ def get_files_for(submission_ids: List[int]) -> Dict[int, List[sqlite3.Row]]:
     return grouped
 
 
+def get_links_for(submission_ids: List[int]) -> Dict[int, List[sqlite3.Row]]:
+    """Extra links for a set of submissions, grouped by submission id."""
+    grouped: Dict[int, List[sqlite3.Row]] = {}
+    if not submission_ids:
+        return grouped
+    conn = get_db()
+    placeholders = ",".join("?" for _ in submission_ids)
+    rows = conn.execute(
+        f"SELECT * FROM submission_links WHERE submission_id IN ({placeholders}) ORDER BY id",
+        submission_ids,
+    ).fetchall()
+    for row in rows:
+        grouped.setdefault(row["submission_id"], []).append(row)
+    return grouped
+
+
 def get_effective_deadline(
     assignment: sqlite3.Row, team_id: int, now: Optional[int] = None
 ) -> DeadlineInfo:
@@ -72,9 +88,10 @@ def get_team_dashboard(
     ).fetchall()
 
     files = get_files_for([s["id"] for s in team_submissions])
+    links = get_links_for([s["id"] for s in team_submissions])
 
     def with_files(s: sqlite3.Row) -> dict:
-        return {**dict(s), "files": files.get(s["id"], [])}
+        return {**dict(s), "files": files.get(s["id"], []), "links": links.get(s["id"], [])}
 
     extension_for = {e["assignment_id"]: e["new_due_at"] for e in extensions}
 

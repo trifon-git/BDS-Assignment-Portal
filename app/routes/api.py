@@ -73,10 +73,14 @@ def _build_index_html(assignment_title: str, rows: list[dict]) -> str:
         files_html = "<br>".join(
             f'<a href="{html.escape(rel_path)}">{html.escape(name)}</a>' for name, rel_path in row["files"]
         ) or "—"
-        exercise_html = (
-            f'<a href="{html.escape(row["link_url"])}" target="_blank" rel="noopener">code link</a>'
-            if row["link_url"] else "—"
+        link_parts = []
+        if row["link_url"]:
+            link_parts.append(f'<a href="{html.escape(row["link_url"])}" target="_blank" rel="noopener">code link</a>')
+        link_parts.extend(
+            f'<a href="{html.escape(url)}" target="_blank" rel="noopener">link {i}</a>'
+            for i, url in enumerate(row["extra_links"], 1)
         )
+        exercise_html = "<br>".join(link_parts) or "—"
         video_html = (
             f'<a href="{html.escape(row["video_url"])}" target="_blank" rel="noopener">video</a>'
             if row["video_url"] else "—"
@@ -137,13 +141,20 @@ def download_assignment(assignment_id: int, admin=Depends(require_admin)):
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         csv_buffer = io.StringIO()
         writer = csv.writer(csv_buffer)
-        writer.writerow(["team", "status", "is_late", "submitted_at", "video_url", "link_url", "note"])
+        writer.writerow(["team", "status", "is_late", "submitted_at", "video_url", "link_url", "extra_links", "note"])
 
         index_rows = []
 
         for submission in submissions:
             team = team_by_id.get(submission["team_id"])
             team_name = team["name"] if team else str(submission["team_id"])
+            extra_links = [
+                row["url"]
+                for row in conn.execute(
+                    "SELECT url FROM submission_links WHERE submission_id = ? ORDER BY id",
+                    (submission["id"],),
+                ).fetchall()
+            ]
             writer.writerow(
                 [
                     team_name,
@@ -152,6 +163,7 @@ def download_assignment(assignment_id: int, admin=Depends(require_admin)):
                     submission["submitted_at"],
                     submission["video_url"] or "",
                     submission["link_url"] or "",
+                    "; ".join(extra_links),
                     submission["note"] or "",
                 ]
             )
@@ -177,6 +189,7 @@ def download_assignment(assignment_id: int, admin=Depends(require_admin)):
                     "submitted_at": submission["submitted_at"],
                     "video_url": submission["video_url"],
                     "link_url": submission["link_url"],
+                    "extra_links": extra_links,
                     "note": submission["note"],
                     "files": file_links,
                 }

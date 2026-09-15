@@ -31,6 +31,7 @@ class SubmitInput:
     video_share_confirmed: bool
     link_url: str
     note: str
+    extra_links: List[str] = field(default_factory=list)
     files: List[StoredFile] = field(default_factory=list)
     rejected: List[dict] = field(default_factory=list)
     keep_existing_files: bool = False
@@ -132,10 +133,23 @@ def submit_delivery(input_: SubmitInput, ip: Optional[str] = None) -> SubmitResu
             )
         link_url = link_url_raw
 
+    extra_links = []
+    for raw in input_.extra_links:
+        raw = raw.strip()
+        if not raw:
+            continue
+        parsed = urlparse(raw)
+        if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            return _fail(
+                input_,
+                "One of your extra links does not look like a link. Paste the full address, starting with https://",
+            )
+        extra_links.append(raw)
+
     # A link to hosted code (a Colab notebook, a GitHub repo) satisfies
     # "needs files" just as well as an upload does -- a team can give
     # either, or both.
-    if assignment["requires_files"] and total_files == 0 and not link_url:
+    if assignment["requires_files"] and total_files == 0 and not link_url and not extra_links:
         because = ""
         if input_.rejected:
             because = " (" + "; ".join(
@@ -186,6 +200,11 @@ def submit_delivery(input_: SubmitInput, ip: Optional[str] = None) -> SubmitResu
             )
             submission_id = existing["id"]
 
+            conn.execute(
+                "DELETE FROM submission_links WHERE submission_id = ?",
+                (existing["id"],),
+            )
+
             if not input_.keep_existing_files:
                 conn.execute(
                     "DELETE FROM submission_files WHERE submission_id = ?",
@@ -223,6 +242,12 @@ def submit_delivery(input_: SubmitInput, ip: Optional[str] = None) -> SubmitResu
                     (submission_id, f.original_name, f.stored_name, f.size_bytes, f.mime_type)
                     for f in input_.files
                 ],
+            )
+
+        if extra_links:
+            conn.executemany(
+                "INSERT INTO submission_links (submission_id, url) VALUES (?, ?)",
+                [(submission_id, url) for url in extra_links],
             )
 
         conn.commit()

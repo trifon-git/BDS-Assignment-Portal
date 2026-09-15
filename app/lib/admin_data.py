@@ -12,7 +12,7 @@ import time
 from typing import Dict, List, Optional
 
 from app.db import get_db
-from app.lib.dashboard import get_files_for
+from app.lib.dashboard import get_files_for, get_links_for
 from app.lib.deadline import delivery_state, is_outstanding, resolve_deadline
 
 # Events an admin would want a badge for. Deliberately an explicit allowlist
@@ -59,6 +59,7 @@ def get_delivery_matrix(assignment: sqlite3.Row, now: Optional[int] = None) -> d
     ).fetchall()
 
     files = get_files_for([s["id"] for s in all_submissions])
+    links = get_links_for([s["id"] for s in all_submissions])
     name_by_id = {m["id"]: m["name"] for m in memberships}
 
     members_by_team: Dict[int, list] = {}
@@ -76,7 +77,11 @@ def get_delivery_matrix(assignment: sqlite3.Row, now: Optional[int] = None) -> d
         members = members_by_team.get(team["id"], [])
         with_files = None
         if submission is not None:
-            with_files = {**dict(submission), "files": files.get(submission["id"], [])}
+            with_files = {
+                **dict(submission),
+                "files": files.get(submission["id"], []),
+                "links": links.get(submission["id"], []),
+            }
         state = delivery_state(with_files, deadline.overdue)
 
         return {

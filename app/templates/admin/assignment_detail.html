@@ -63,7 +63,11 @@
           {% endif %}
         </td>
         <td class="small">
-          {% if row.submission and row.submission.link_url %}<a href="{{ row.submission.link_url }}" target="_blank" rel="noopener">code link</a>{% else %}—{% endif %}
+          {% if row.submission and row.submission.link_url %}<div><a href="{{ row.submission.link_url }}" target="_blank" rel="noopener">code link</a></div>{% endif %}
+          {% if row.submission %}
+            {% for l in row.submission.links %}<div><a href="{{ l.url }}" target="_blank" rel="noopener">link {{ loop.index }}</a></div>{% endfor %}
+          {% endif %}
+          {% if not row.submission or (not row.submission.link_url and not row.submission.links) %}—{% endif %}
         </td>
         <td class="small">
           {% if row.submission and row.submission.video_url %}<a href="{{ row.submission.video_url }}" target="_blank" rel="noopener">video</a>{% else %}—{% endif %}
