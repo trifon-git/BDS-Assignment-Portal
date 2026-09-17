@@ -73,7 +73,7 @@
     <tr><th>Student</th>{% for c in matrix.columns %}<th>{{ c.week_number and ("W" ~ c.week_number) or c.title }}</th>{% endfor %}</tr>
     {% for row in matrix.rows %}
       <tr>
-        <td>{{ row.student.name }}</td>
+        <td><a href="/admin/students#student-{{ row.student.id }}">{{ row.student.name }}</a></td>
         {% for cell in row.cells %}<td><span class="state-pill state-{{ cell.state }}">{{ state_label[cell.state] }}</span></td>{% endfor %}
       </tr>
     {% endfor %}

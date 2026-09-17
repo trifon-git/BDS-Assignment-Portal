@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Optional
 from urllib.parse import quote
 
@@ -20,6 +21,8 @@ from app.lib.change_requests import get_pending_count as get_pending_change_requ
 from app.lib.mailto import change_request_outcome_email, feedback_email, mailto_href, personal_link_email, team_link_email
 from app.lib.settings import get_all_settings
 from app.lib.team_access import get_team_members
+from app.lib.team_shuffle import QUESTIONS, question_significance, team_diversity_score
+from app.lib.team_shuffle import get_response as get_team_shuffle_response
 from app.lib.teams import count_protected_teams
 from app.templating import render
 
@@ -293,6 +296,33 @@ def students_link_sent(student_id: int, admin=Depends(require_admin)):
     return Response(status_code=204)
 
 
+@router.get("/students/{student_id}/team-shuffle")
+def student_team_shuffle_answers(request: Request, student_id: int, admin=Depends(require_admin)):
+    student = get_db().execute("SELECT * FROM students WHERE id = ?", (student_id,)).fetchone()
+    if not student:
+        return render(request, "404.html", status_code=404)
+
+    response = get_team_shuffle_response(student_id)
+    answered = json.loads(response["answers"]) if response else None
+
+    rows = [
+        {
+            "label": q["label"],
+            "chosen": q["options"][answered[q["key"]]] if answered and q["key"] in answered else None,
+        }
+        for q in QUESTIONS
+    ]
+
+    return render(
+        request,
+        "admin/student_team_shuffle.html",
+        **_admin_ctx(admin),
+        student=student,
+        response=response,
+        rows=rows,
+    )
+
+
 # -----------------------------------------------------------------------------
 # Group-change requests
 # -----------------------------------------------------------------------------
@@ -340,8 +370,10 @@ def teams_page(
     admin=Depends(require_admin),
     assignment: Optional[int] = None,
     shuffled: Optional[str] = None,
+    formed: Optional[str] = None,
     created: Optional[str] = None,
     placed: Optional[str] = None,
+    skipped: Optional[str] = None,
     deleted: Optional[str] = None,
     protectedTeams: Optional[str] = None,
 ):
@@ -360,6 +392,29 @@ def teams_page(
         roster = admin_data.get_roster_with_teams(assignment)
         protected = count_protected_teams(assignment)
 
+    # Questionnaire-based split -- a second way to fill the same teams list
+    # above, folded into this page (a toggle switches between the two
+    # methods) rather than living on a page of its own.
+    shuffle_overview = admin_data.get_team_shuffle_overview()
+    all_answers = [
+        json.loads(r["answers"])
+        for r in conn.execute("SELECT answers FROM team_shuffle_responses").fetchall()
+    ]
+    significance = question_significance(all_answers) if all_answers else []
+
+    if current_assignment is not None:
+        responses_by_student = {
+            r["student_id"]: json.loads(r["answers"])
+            for r in conn.execute("SELECT student_id, answers FROM team_shuffle_responses").fetchall()
+        }
+        for row in teams_with_members:
+            member_answers = [
+                responses_by_student[m["id"]] for m in row["members"] if m["id"] in responses_by_student
+            ]
+            row["mix_pct"] = (
+                round(team_diversity_score(member_answers) * 100) if member_answers else None
+            )
+
     settings = get_all_settings()
 
     return render(
@@ -373,13 +428,18 @@ def teams_page(
         roster=roster,
         protected_count=protected,
         shuffled=bool(shuffled),
+        formed=bool(formed),
         created=created,
         placed=placed,
+        skipped=skipped,
         deleted=deleted,
         protected_teams=protectedTeams,
         course_code=settings["course_code"],
         team_link_email=team_link_email,
         mailto_href=mailto_href,
+        shuffle_overview=shuffle_overview,
+        significance=significance,
+        team_shuffle_enabled=settings["team_shuffle_enabled"] == "1",
     )
 
 
@@ -497,6 +557,36 @@ def team_forum_admin(request: Request, team_id: int, admin=Depends(require_admin
         assignment=assignment,
         members=members,
         forum=forum,
+    )
+
+
+# -----------------------------------------------------------------------------
+# Team split (questionnaire-based team forming) -- actions only; the page
+# itself is the "Questionnaire" tab on /admin/teams above.
+# -----------------------------------------------------------------------------
+
+
+@router.post("/team-shuffle/toggle")
+async def team_shuffle_toggle(request: Request, admin=Depends(require_admin)):
+    form = await request.form()
+    actions.set_team_shuffle_enabled(admin, form.get("enabled") == "on")
+    referer = request.headers.get("referer") or "/admin/teams"
+    return RedirectResponse(referer, status_code=303)
+
+
+@router.post("/team-shuffle/form")
+async def team_shuffle_form(request: Request, admin=Depends(require_admin)):
+    form = await request.form()
+    assignment_id = int(form.get("assignmentId"))
+    mode = str(form.get("mode") or "fill")
+    preferred_raw = form.get("preferred")
+    preferred = int(preferred_raw) if preferred_raw else None
+    result = actions.shuffle_teams_by_questionnaire_action(admin, assignment_id, mode, preferred)
+    return RedirectResponse(
+        f"/admin/teams?assignment={assignment_id}&formed=1&created={result.created}"
+        f"&placed={result.placed}&deleted={result.deleted}&protectedTeams={result.protected_teams}"
+        f"&skipped={result.skipped}",
+        status_code=303,
     )
 
 

@@ -49,10 +49,14 @@
     {% for row in rows %}
       <tr>
         <td>
-          {{ row.student.name if row.student else row.team.name }}
+          {% if row.student %}
+            <a href="/admin/students#student-{{ row.student.id }}">{{ row.student.name }}</a>
+          {% else %}
+            <a href="/admin/teams?assignment={{ assignment.id }}#team-{{ row.team.id }}">{{ row.team.name }}</a>
+          {% endif %}
           {% if row.extended %}<span class="tag">extended</span>{% endif %}
         </td>
-        <td class="small muted">{{ row.members | map(attribute='name') | join(', ') }}</td>
+        <td class="small muted">{% for m in row.members %}<a href="/admin/students#student-{{ m.id }}">{{ m.name }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</td>
         <td><span class="state-pill state-{{ row.state }}">{{ state_label[row.state] }}</span></td>
         <td class="small">{{ row.submission.submitted_at | format_deadline if row.submission else "—" }}</td>
         <td class="small">

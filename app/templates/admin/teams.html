@@ -15,37 +15,135 @@
 {% if shuffled %}
   <p class="alert alert-success">Shuffled: created {{ created }}, placed {{ placed }}, deleted {{ deleted }}, protected {{ protected_teams }}.</p>
 {% endif %}
+{% if formed %}
+  <p class="alert alert-success">
+    Formed from the questionnaire: created {{ created }}, placed {{ placed }}, deleted {{ deleted }},
+    protected {{ protected_teams }}{% if skipped and skipped != "0" %}, {{ skipped }} left unassigned (no response yet){% endif %}.
+  </p>
+{% endif %}
 
 {% if assignment %}
 <div class="card">
-  <h3 style="margin-top:0;">Shuffle</h3>
-  <form method="post" action="/admin/teams/shuffle" class="field-row" style="align-items:end;">
-    <input type="hidden" name="assignmentId" value="{{ assignment.id }}">
-    <div class="field">
-      <label>Group size</label>
-      <select name="preferred" title="A target the shuffle aims for, not a hard cap -- the last group may come out a member short or over so nobody is left out.">
-        <option value="2">2</option><option value="3">3</option>
-        <option value="4" selected>3-4</option><option value="5">5</option>
-        <option value="6">6</option><option value="7">7</option><option value="8">8</option>
-      </select>
-    </div>
-    <div class="field"><button type="submit" name="mode" value="fill" class="btn">Shuffle unassigned students</button></div>
-    <div class="field">
-      <span id="reshuffle-trigger" data-reshuffle-trigger><button type="button" class="btn">Re-shuffle everyone&hellip;</button></span>
-      <span id="reshuffle-confirm" class="hidden">
-        <button type="submit" name="mode" value="reshuffle" class="btn btn-danger" data-confirm="Delete and re-cut every group for this assignment? {{ protected_count }} protected team(s) will be kept.">Yes, re-shuffle</button>
-        <button type="button" class="btn" data-reshuffle-cancel>Cancel</button>
-      </span>
-    </div>
+  <h3 style="margin-top:0;">Questionnaire</h3>
+  <form method="post" action="/admin/team-shuffle/toggle">
+    <label style="display:flex;align-items:center;gap:0.5rem;font-weight:600;cursor:pointer;">
+      <input type="checkbox" name="enabled" onchange="this.form.submit()" {{ "checked" if team_shuffle_enabled }} style="width:16px;height:16px;">
+      Show the questionnaire on students' personal pages
+    </label>
   </form>
-  <p class="small muted">
-    <strong>Shuffle unassigned students</strong> only groups people with no
-    team here yet — safe to run any time, it never touches an existing team.
-    <strong>Re-shuffle everyone</strong> deletes every team for this
-    assignment and re-cuts them from scratch, <em>except</em> a team that
-    already has a submission or a deadline extension — those {{ protected_count }}
-    team(s) are kept exactly as they are, whatever mode you pick.
+  <p class="small muted" style="margin:0.5rem 0 0;">
+    {% if team_shuffle_enabled %}
+      <strong>Currently on.</strong> Every student sees a short, fun preference questionnaire
+      card on their personal page (<code>/s/&lt;their link&gt;</code>) and can fill it in or
+      update it any time. Untick this to hide that card again — their saved answers aren't
+      deleted, so turning it back on later picks up right where things were.
+    {% else %}
+      <strong>Currently off.</strong> Students see nothing extra right now — their personal
+      page looks exactly as it always has. Tick this to add a short, fun preference
+      questionnaire card there. This only affects what students see — the response count and
+      the "who's responded" list below (and the Questionnaire column on the Students page)
+      always show, whether or not this is on.
+    {% endif %}
   </p>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0;">Form teams</h3>
+  <div class="tabs">
+    <button type="button" class="tab-btn active" data-tab-btn="random" data-tab-group="split-method">Random</button>
+    <button type="button" class="tab-btn" data-tab-btn="questionnaire" data-tab-group="split-method">Questionnaire</button>
+  </div>
+
+  <div data-tab-panel="random" data-tab-group="split-method">
+    <form method="post" action="/admin/teams/shuffle" class="field-row" style="align-items:end;">
+      <input type="hidden" name="assignmentId" value="{{ assignment.id }}">
+      <div class="field">
+        <label>Group size</label>
+        <select name="preferred" title="A target the shuffle aims for, not a hard cap -- the last group may come out a member short or over so nobody is left out.">
+          <option value="2">2</option><option value="3">3</option>
+          <option value="4" selected>3-4</option><option value="5">5</option>
+          <option value="6">6</option><option value="7">7</option><option value="8">8</option>
+        </select>
+      </div>
+      <div class="field"><button type="submit" name="mode" value="fill" class="btn">Shuffle unassigned students</button></div>
+      <div class="field" data-reshuffle-scope>
+        <span data-reshuffle-trigger><button type="button" class="btn">Re-shuffle everyone&hellip;</button></span>
+        <span data-reshuffle-confirm class="hidden">
+          <button type="submit" name="mode" value="reshuffle" class="btn btn-danger" data-confirm="Delete and re-cut every group for this assignment? {{ protected_count }} protected team(s) will be kept.">Yes, re-shuffle</button>
+          <button type="button" class="btn" data-reshuffle-cancel>Cancel</button>
+        </span>
+      </div>
+    </form>
+    <p class="small muted">
+      <strong>Shuffle unassigned students</strong> only groups people with no
+      team here yet — safe to run any time, it never touches an existing team.
+      <strong>Re-shuffle everyone</strong> deletes every team for this
+      assignment and re-cuts them from scratch, <em>except</em> a team that
+      already has a submission or a deadline extension — those {{ protected_count }}
+      team(s) are kept exactly as they are, whatever mode you pick.
+    </p>
+  </div>
+
+  <div data-tab-panel="questionnaire" data-tab-group="split-method" class="hidden">
+    <div class="stat-row" style="margin:0.5rem 0;">
+      <div class="stat"><b>{{ shuffle_overview.responded | length }}</b> of {{ shuffle_overview.total_active }} responded</div>
+    </div>
+    {% if shuffle_overview.missing %}
+      <details style="margin-bottom:0.75rem;">
+        <summary class="small muted" style="cursor:pointer;">{{ shuffle_overview.missing | length }} haven't responded yet</summary>
+        <ul class="small" style="margin:0.5rem 0 0;">
+          {% for s in shuffle_overview.missing %}<li><a href="/admin/students#student-{{ s.id }}">{{ s.name }}</a> &mdash; {{ s.email }}</li>{% endfor %}
+        </ul>
+        <p style="margin-top:0.5rem;">
+          <a class="btn btn-sm" href="{{ mailto_href(shuffle_overview.missing | map(attribute='email') | list, course_code ~ ' — quick team-forming questionnaire', 'Hi,\n\nBefore teams are split, please fill in the short team-forming questionnaire on your personal page (the link you were sent earlier this semester). It takes under a minute and has no personal questions.\n\nThanks!') }}">Email them a reminder</a>
+        </p>
+      </details>
+    {% endif %}
+
+    <form method="post" action="/admin/team-shuffle/form" class="field-row" style="align-items:end;">
+      <input type="hidden" name="assignmentId" value="{{ assignment.id }}">
+      <div class="field">
+        <label>Group size</label>
+        <select name="preferred">
+          <option value="2">2</option><option value="3">3</option>
+          <option value="4" selected>3-4</option><option value="5">5</option>
+          <option value="6">6</option><option value="7">7</option><option value="8">8</option>
+        </select>
+      </div>
+      <div class="field"><button type="submit" name="mode" value="fill" class="btn">Form teams for unassigned students</button></div>
+      <div class="field" data-reshuffle-scope>
+        <span data-reshuffle-trigger><button type="button" class="btn">Re-split everyone&hellip;</button></span>
+        <span data-reshuffle-confirm class="hidden">
+          <button type="submit" name="mode" value="reshuffle" class="btn btn-danger" data-confirm="Delete and re-cut every group for this assignment from the questionnaire? {{ protected_count }} protected team(s) will be kept.">Yes, re-split</button>
+          <button type="button" class="btn" data-reshuffle-cancel>Cancel</button>
+        </span>
+      </div>
+    </form>
+    <p class="small muted">
+      Only students who've answered the questionnaire are placed — anyone without a response
+      is left unassigned so the random shuffle above can pick them up. Same protection rules as
+      the random shuffle: a team with a submission or a deadline extension is never touched or
+      deleted. Also steers away from pairing up two students who already shared a team before,
+      on any past assignment.
+    </p>
+
+    {% if significance %}
+      <details style="margin-top:0.75rem;">
+        <summary class="small muted" style="cursor:pointer;">Why these questions matter</summary>
+        <p class="small muted" style="margin:0.5rem 0;">
+          Each question's diversity index measures how spread out the answers are across everyone
+          who has responded so far (0% = everyone picked the same option, 100% = as varied as
+          possible) — the higher it ranks, the more it actually helps tell students apart.
+        </p>
+        {% for s in significance %}
+          <div class="sig-row">
+            <div class="sig-top"><span>{{ s.label }}</span><span>{{ s.pct }}% diversity</span></div>
+            <div class="sig-bar-track"><div class="sig-bar-fill" style="width:{{ s.pct }}%"></div></div>
+          </div>
+        {% endfor %}
+      </details>
+    {% endif %}
+  </div>
 </div>
 
 <div class="card">
@@ -65,10 +163,14 @@
 </div>
 
 {% for t in teams %}
-  <div class="card">
+  <div class="card" id="team-{{ t.team.id }}">
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
       <div>
-        <h3 style="margin:0;">{{ t.team.name }}</h3>
+        <h3 style="margin:0;">{{ t.team.name }}
+          {% if t.mix_pct is not none %}
+            <span class="badge {{ 'high' if t.mix_pct >= 70 else ('mid' if t.mix_pct >= 40 else 'low') }}" title="Share of the group's overall questionnaire-answer variety captured inside this team.">{{ t.mix_pct }}% mixed</span>
+          {% endif %}
+        </h3>
         <p class="small muted">Code: {{ t.team.short_code }} &middot; <a href="/t/{{ t.team.access_token }}" target="_blank">open page</a> &middot; <a href="/admin/teams/{{ t.team.id }}/forum">forum</a></p>
       </div>
       <div style="display:flex;flex-direction:column;gap:0.3rem;align-items:flex-end;">
@@ -92,7 +194,7 @@
     <table style="margin-top:0.5rem;">
       {% for m in t.members %}
         <tr>
-          <td>{{ m.name }}</td>
+          <td><a href="/admin/students#student-{{ m.id }}">{{ m.name }}</a></td>
           <td class="small muted">{{ m.email }}</td>
           <td style="text-align:right;">
             <form method="post" action="/admin/teams/move" class="inline">
@@ -137,7 +239,7 @@
 <div class="card">
   {% for r in roster if not r.team %}
     <div style="display:flex;justify-content:space-between;align-items:center;padding:0.25rem 0;">
-      <span>{{ r.student.name }}</span>
+      <span><a href="/admin/students#student-{{ r.student.id }}">{{ r.student.name }}</a></span>
     </div>
   {% else %}
     <p class="muted">Everyone is placed.</p>

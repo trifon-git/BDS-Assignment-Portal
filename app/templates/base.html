@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <title>{% block title %}{{ semester_name or "AAU Assignment Portal" }}{% endblock %}</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="/static/css/app.css?v={{ app_version }}">
   <script>
     (function () {
       var t = localStorage.getItem("theme");
@@ -24,7 +24,7 @@
     {% block content %}{% endblock %}
   </div>
   <footer class="site">Questions? <a href="mailto:{{ support_email }}">{{ support_email }}</a></footer>
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/app.js?v={{ app_version }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

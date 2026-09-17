@@ -32,10 +32,11 @@
       <th>Name</th><th>Email</th><th>Active</th>
       <th title="How many published assignments they're currently on a team for, out of every published assignment so far.">Grouped</th>
       <th title="Solo deliveries they own, and deliveries they clicked submit on for a team.">Deliveries</th>
+      <th title="Whether they've filled in the team-forming questionnaire on their personal page.">Questionnaire</th>
       <th>Personal link</th><th>Actions</th>
     </tr>
     {% for r in roster %}
-      <tr>
+      <tr id="student-{{ r.student.id }}">
         <td>
           <form method="post" action="/admin/students/update" id="edit-{{ r.student.id }}">
             <input type="hidden" name="studentId" value="{{ r.student.id }}">
@@ -48,6 +49,13 @@
         <td>{{ "Yes" if r.student.active else "No" }}</td>
         <td class="small">{{ r.grouped_for }}/{{ r.published_assignments }}</td>
         <td class="small">{{ r.solo_submissions }} solo, {{ r.submitted_by_them }} sent</td>
+        <td class="small">
+          {% if r.team_shuffle_responded %}
+            <a href="/admin/students/{{ r.student.id }}/team-shuffle" class="badge high" style="text-decoration:none;">✓ view</a>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
         <td class="small">
           {% if r.student.access_token %}
             {% set link = request.url_for('personal_dashboard', token=r.student.access_token) | string %}
@@ -76,7 +84,7 @@
         </td>
       </tr>
     {% else %}
-      <tr><td colspan="7" class="muted">No students yet.</td></tr>
+      <tr><td colspan="8" class="muted">No students yet.</td></tr>
     {% endfor %}
   </table>
 </div>

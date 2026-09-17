@@ -424,6 +424,10 @@ def get_roster() -> List[dict]:
     solo_by = {r["student_id"]: r["n"] for r in solo}
     sent_by = {r["student_id"]: r["n"] for r in submitted}
     grouped_by = {r["student_id"]: r["n"] for r in grouped}
+    shuffle_responded = {
+        r["student_id"]
+        for r in conn.execute("SELECT student_id FROM team_shuffle_responses").fetchall()
+    }
 
     return [
         {
@@ -432,9 +436,26 @@ def get_roster() -> List[dict]:
             "published_assignments": published_count,
             "solo_submissions": solo_by.get(student["id"], 0),
             "submitted_by_them": sent_by.get(student["id"], 0),
+            "team_shuffle_responded": student["id"] in shuffle_responded,
         }
         for student in rows
     ]
+
+
+def get_team_shuffle_overview() -> dict:
+    """Who has, and hasn't, filled in the team-forming questionnaire yet --
+    the roster the admin's Team split page needs to decide when to run it."""
+    conn = get_db()
+    students = conn.execute("SELECT * FROM students WHERE active = 1 ORDER BY name").fetchall()
+    responded_ids = {
+        r["student_id"]
+        for r in conn.execute("SELECT student_id FROM team_shuffle_responses").fetchall()
+    }
+    return {
+        "responded": [s for s in students if s["id"] in responded_ids],
+        "missing": [s for s in students if s["id"] not in responded_ids],
+        "total_active": len(students),
+    }
 
 
 def get_notification_count(seen_at: Optional[int]) -> int:

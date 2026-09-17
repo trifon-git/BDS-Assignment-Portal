@@ -56,7 +56,14 @@ def from_date_time_local(value: str) -> Optional[int]:
         return None
 
     y, mo, d, h, mi = (int(x) for x in match.groups())
-    if not (1 <= mo <= 12 and 1 <= d <= 31 and h <= 23 and mi <= 59):
+    # A `datetime-local` input can be typed into freely, not just picked, so
+    # a stray keystroke can produce a year like 1212 or 9999 that still
+    # matches the regex above. Such a value isn't just wrong -- rendering it
+    # later calls the platform's C time functions, which raise OSError on
+    # Windows for a year far enough from the epoch, 500-ing every page that
+    # lists assignments. Reject it here, at the one place user input enters
+    # this field, rather than guard every place a date is displayed.
+    if not (1 <= mo <= 12 and 1 <= d <= 31 and h <= 23 and mi <= 59 and 2000 <= y <= 2100):
         return None
 
     try:

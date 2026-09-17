@@ -8,6 +8,37 @@
 
 {% if error %}<p class="alert alert-error">{{ error }}</p>{% endif %}
 {% if requested %}<p class="alert alert-success">Your change request was sent. You'll see the outcome below once it's reviewed.</p>{% endif %}
+{% if team_shuffle_saved %}<p class="alert alert-success">Thanks — your answers are saved.</p>{% endif %}
+
+{% if team_shuffle_enabled %}
+<div class="card">
+  <h3 style="margin-top:0;">🧩 Team-forming questionnaire</h3>
+  <p class="small muted">
+    10 quick, fun questions — nothing personal (no name, age, gender, or other identifying details).
+    Your organizer uses these to help split people into diverse teams for an upcoming assignment.
+    You can update your answers any time before teams are formed.
+  </p>
+  <details {{ "open" if not team_shuffle_answers }}>
+    <summary class="small muted" style="cursor:pointer;">{{ "Update your answers" if team_shuffle_answers else "Fill in the questionnaire" }}</summary>
+    <form method="post" action="/s/{{ token }}/team-shuffle" style="margin-top:0.75rem;">
+      {% for q in team_shuffle_questions %}
+        <div class="field">
+          <p class="small" style="font-weight:600;margin:0 0 6px;">{{ loop.index }}. {{ q.label }}</p>
+          <div class="opts" style="display:grid;gap:6px;">
+            {% for opt in q.options %}
+              <label class="opt" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;font-size:14px;cursor:pointer;">
+                <input type="radio" name="{{ q.key }}" value="{{ loop.index0 }}" {{ "checked" if team_shuffle_answers and team_shuffle_answers.get(q.key) == loop.index0 }} required>
+                <span>{{ opt }}</span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+      {% endfor %}
+      <button type="submit" class="btn btn-primary">{{ "Save changes" if team_shuffle_answers else "Submit answers" }}</button>
+    </form>
+  </details>
+</div>
+{% endif %}
 
 {% if rows|length == 0 %}
   <p class="card muted" style="text-align:center;">No assignments have been published yet.</p>

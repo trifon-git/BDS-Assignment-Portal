@@ -9,6 +9,7 @@ from typing import Optional
 from app.db import db_lock, get_db
 from app.lib.ids import generate_access_token, generate_short_code
 from app.lib.shuffle import shuffle_into_groups
+from app.lib.team_shuffle import form_diverse_teams, get_pair_history, get_responses_for
 
 
 @dataclass
@@ -185,8 +186,12 @@ def shuffle_teams(
 
         groups = shuffle_into_groups(pool, preferred=preferred, seed=seed)
 
+        # Numbered off whatever teams actually still exist after the delete
+        # above -- not the pre-delete list, or a full re-shuffle would climb
+        # forever (Group 5, 6, 7...) instead of starting back at 1 each time.
+        remaining_teams = protected_teams if mode == "reshuffle" else existing_teams
         next_number = 1
-        for t in existing_teams:
+        for t in remaining_teams:
             m = re.match(r"^Group (\d+)$", t["name"])
             if m:
                 next_number = max(next_number, int(m.group(1)) + 1)
@@ -223,4 +228,124 @@ def shuffle_teams(
             placed=placed,
             deleted=deleted,
             protected_teams=len(protected_teams),
+        )
+
+
+def shuffle_teams_by_questionnaire(
+    assignment_id: int,
+    mode: str = "fill",
+    preferred: int = 4,
+    seed: Optional[int] = None,
+) -> ShuffleResult:
+    """Same shape as `shuffle_teams`, but groups people by their
+    questionnaire answers instead of at random, steering away from pairing
+    up students who already shared a team before (across any assignment).
+
+    Only students who have answered the questionnaire are placed -- anyone
+    without a saved response is left unassigned (counted in `skipped`) so
+    the ordinary "Shuffle unassigned students" can pick them up afterwards,
+    same as any other gap in the roster.
+    """
+    with db_lock() as conn:
+        existing_teams = conn.execute(
+            "SELECT * FROM teams WHERE assignment_id = ?", (assignment_id,)
+        ).fetchall()
+
+        protected_ids = set()
+        for row in conn.execute(
+            "SELECT DISTINCT team_id FROM submissions WHERE assignment_id = ?",
+            (assignment_id,),
+        ).fetchall():
+            protected_ids.add(row["team_id"])
+        for row in conn.execute(
+            "SELECT DISTINCT team_id FROM deadline_extensions WHERE assignment_id = ?",
+            (assignment_id,),
+        ).fetchall():
+            protected_ids.add(row["team_id"])
+
+        protected_teams = [t for t in existing_teams if t["id"] in protected_ids]
+
+        deleted = 0
+        if mode == "reshuffle":
+            removable = [t for t in existing_teams if t["id"] not in protected_ids]
+            for t in removable:
+                conn.execute("DELETE FROM teams WHERE id = ?", (t["id"],))
+            deleted = len(removable)
+
+            protected_student_ids = set()
+            if protected_teams:
+                placeholders = ",".join("?" for _ in protected_teams)
+                rows = conn.execute(
+                    f"SELECT student_id FROM team_members WHERE assignment_id = ? "
+                    f"AND team_id IN ({placeholders})",
+                    (assignment_id, *[t["id"] for t in protected_teams]),
+                ).fetchall()
+                protected_student_ids = {r["student_id"] for r in rows}
+
+            pool = [
+                r["id"]
+                for r in conn.execute("SELECT id FROM students WHERE active = 1").fetchall()
+                if r["id"] not in protected_student_ids
+            ]
+        else:
+            already_grouped = {
+                r["student_id"]
+                for r in conn.execute(
+                    "SELECT student_id FROM team_members WHERE assignment_id = ?",
+                    (assignment_id,),
+                ).fetchall()
+            }
+            pool = [
+                r["id"]
+                for r in conn.execute("SELECT id FROM students WHERE active = 1").fetchall()
+                if r["id"] not in already_grouped
+            ]
+
+        responses = get_responses_for(pool)
+        students = [(sid, responses[sid]) for sid in pool if sid in responses]
+        skipped = len(pool) - len(students)
+
+        pair_history = get_pair_history()
+        groups = form_diverse_teams(students, preferred=preferred, pair_history=pair_history, seed=seed)
+
+        remaining_teams = protected_teams if mode == "reshuffle" else existing_teams
+        next_number = 1
+        for t in remaining_teams:
+            m = re.match(r"^Group (\d+)$", t["name"])
+            if m:
+                next_number = max(next_number, int(m.group(1)) + 1)
+
+        created = 0
+        placed = 0
+        for group in groups:
+            cur = conn.execute(
+                "INSERT INTO teams (assignment_id, name, access_token, short_code) "
+                "VALUES (?, ?, ?, ?)",
+                (
+                    assignment_id,
+                    f"Group {next_number}",
+                    generate_access_token(),
+                    generate_short_code(),
+                ),
+            )
+            next_number += 1
+            team_id = cur.lastrowid
+
+            conn.executemany(
+                "INSERT INTO team_members (team_id, assignment_id, student_id) "
+                "VALUES (?, ?, ?)",
+                [(team_id, assignment_id, sid) for sid in group],
+            )
+
+            created += 1
+            placed += len(group)
+
+        conn.commit()
+
+        return ShuffleResult(
+            created=created,
+            placed=placed,
+            deleted=deleted,
+            protected_teams=len(protected_teams),
+            skipped=skipped,
         )

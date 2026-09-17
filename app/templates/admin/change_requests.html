@@ -22,7 +22,7 @@
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
         <div>
           <strong>{{ r.student_name }}</strong> <span class="small muted">{{ r.student_email }}</span>
-          <p class="small muted" style="margin:0.25rem 0;">{{ r.assignment_title }} &middot; currently {{ item.current_team.name if item.current_team else "no group" }}</p>
+          <p class="small muted" style="margin:0.25rem 0;">{{ r.assignment_title }} &middot; currently {% if item.current_team %}<a href="/admin/teams?assignment={{ item.current_team.assignment_id }}#team-{{ item.current_team.id }}">{{ item.current_team.name }}</a>{% else %}no group{% endif %}</p>
         </div>
         <span class="small muted">{{ r.created_at | format_deadline }}</span>
       </div>

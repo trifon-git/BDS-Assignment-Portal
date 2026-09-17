@@ -42,18 +42,38 @@ document.addEventListener("click", (e) => {
   });
 });
 
-// Reshuffle confirm toggle on the teams page.
+// Reshuffle confirm toggle on the teams page. Scoped to the nearest
+// [data-reshuffle-scope] ancestor rather than a page-wide id, since the
+// random-shuffle and questionnaire-split forms each have their own trigger
+// living in the same page.
 document.addEventListener("click", (e) => {
   const trigger = e.target.closest("[data-reshuffle-trigger]");
   if (trigger) {
-    document.getElementById("reshuffle-confirm")?.classList.remove("hidden");
+    const scope = trigger.closest("[data-reshuffle-scope]") || document;
+    scope.querySelector("[data-reshuffle-confirm]")?.classList.remove("hidden");
     trigger.classList.add("hidden");
   }
   const cancel = e.target.closest("[data-reshuffle-cancel]");
   if (cancel) {
-    document.getElementById("reshuffle-confirm")?.classList.add("hidden");
-    document.getElementById("reshuffle-trigger")?.classList.remove("hidden");
+    const scope = cancel.closest("[data-reshuffle-scope]") || document;
+    scope.querySelector("[data-reshuffle-confirm]")?.classList.add("hidden");
+    scope.querySelector("[data-reshuffle-trigger]")?.classList.remove("hidden");
   }
+});
+
+// Simple tab switcher: click a [data-tab-btn] to show the matching
+// [data-tab-panel] within the same [data-tab-group] and hide the rest.
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-tab-btn]");
+  if (!btn) return;
+  const group = btn.getAttribute("data-tab-group");
+  const key = btn.getAttribute("data-tab-btn");
+  document.querySelectorAll(`[data-tab-btn][data-tab-group="${group}"]`).forEach((b) => {
+    b.classList.toggle("active", b === btn);
+  });
+  document.querySelectorAll(`[data-tab-panel][data-tab-group="${group}"]`).forEach((p) => {
+    p.classList.toggle("hidden", p.getAttribute("data-tab-panel") !== key);
+  });
 });
 
 // A click that should record something server-side without blocking the

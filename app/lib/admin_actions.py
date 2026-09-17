@@ -19,7 +19,7 @@ from app.lib.ids import generate_access_token, generate_short_code
 from app.lib.roster import is_emailish, parse_roster, titlecase_name
 from app.lib.settings import set_setting
 from app.lib.storage import delete_stored_file
-from app.lib.teams import copy_teams, shuffle_teams
+from app.lib.teams import copy_teams, shuffle_teams, shuffle_teams_by_questionnaire
 
 
 class AdminActionError(Exception):
@@ -465,6 +465,33 @@ def shuffle_teams_action(admin, assignment_id: int, mode: str, preferred_raw: Op
         ),
     )
     return result
+
+
+def shuffle_teams_by_questionnaire_action(admin, assignment_id: int, mode: str, preferred_raw: Optional[int]):
+    mode = "reshuffle" if mode == "reshuffle" else "fill"
+    preferred = min(10, max(2, preferred_raw)) if preferred_raw else 4
+
+    result = shuffle_teams_by_questionnaire(assignment_id, mode=mode, preferred=preferred)
+
+    record_audit(
+        action="team.shuffled",
+        actor_name=f"admin:{admin['email']}",
+        detail=(
+            f"questionnaire {mode} · created {result.created} · placed {result.placed} · "
+            f"deleted {result.deleted} · protected {result.protected_teams} · "
+            f"no response {result.skipped}"
+        ),
+    )
+    return result
+
+
+def set_team_shuffle_enabled(admin, enabled: bool) -> None:
+    set_setting("team_shuffle_enabled", "1" if enabled else "0")
+    record_audit(
+        action="settings.updated",
+        actor_name=f"admin:{admin['email']}",
+        detail=f"team-forming questionnaire {'enabled' if enabled else 'disabled'}",
+    )
 
 
 def rename_team(team_id: int, name: str) -> None:

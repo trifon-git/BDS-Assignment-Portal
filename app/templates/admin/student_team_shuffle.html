@@ -1,0 +1,23 @@
+{% extends "admin/_base.html" %}
+{% set active = "students" %}
+{% block content %}
+<p><a href="/admin/students" class="btn">&larr; Students</a></p>
+<h1>{{ student.name }} &mdash; questionnaire</h1>
+<p class="muted small">{{ student.email }}</p>
+
+{% if response %}
+  <p class="small muted">Submitted {{ response.submitted_at | format_deadline }}.</p>
+  <div class="card">
+    <table>
+      {% for r in rows %}
+        <tr>
+          <td class="small" style="width:60%;">{{ r.label }}</td>
+          <td class="small"><strong>{{ r.chosen or "—" }}</strong></td>
+        </tr>
+      {% endfor %}
+    </table>
+  </div>
+{% else %}
+  <p class="card muted">{{ student.name }} hasn't filled in the team-forming questionnaire yet.</p>
+{% endif %}
+{% endblock %}

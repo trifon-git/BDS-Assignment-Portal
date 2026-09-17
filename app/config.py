@@ -31,7 +31,7 @@ TIMEZONE = os.environ.get("TIMEZONE") or "Europe/Copenhagen"
 # Bumped by hand with every deploy that changes admin- or student-facing
 # behavior, so a screenshot or a support email can be pinned to a build
 # without digging through git log. Shown in the admin nav footer.
-APP_VERSION = "1.8"
+APP_VERSION = "1.12"
 
 IS_PRODUCTION = os.environ.get("ENVIRONMENT", "production") == "production"
 
@@ -47,4 +47,9 @@ SETTING_DEFAULTS = {
     # password reset in a system with no passwords, so this address is the
     # entire recovery path and it appears on every student-facing page.
     "support_email": "trka@business.aau.dk",
+    # "1" shows the team-forming questionnaire on every student's personal
+    # page. Off by default so it never appears unless an admin turns it on
+    # from the Teams page. Admin views of who has responded stay visible
+    # regardless of this setting -- it only controls the student-facing card.
+    "team_shuffle_enabled": "0",
 }
