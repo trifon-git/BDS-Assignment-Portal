@@ -16,6 +16,7 @@ team like any other -- nothing downstream needs to know how it was formed.
 from __future__ import annotations
 
 import json
+import secrets
 import sqlite3
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Set, Tuple
@@ -174,7 +175,29 @@ def get_pair_history() -> Dict[int, Set[int]]:
 # -------------------------------------------------------------------------
 
 
-def _encode(answers_list: Sequence[dict]) -> List[List[int]]:
+def _question_weights(answers_list: Sequence[dict]) -> Dict[str, float]:
+    """Gini-Simpson diversity (0..1), relative to the max a question with
+    that many options could reach, computed over THIS exact pool of answers
+    -- not the all-time response history `question_significance()` below
+    uses for the admin display. A question everyone here answered the same
+    way gets weight 0 and stops influencing placement; a highly-split
+    question dominates it."""
+    n = len(answers_list)
+    weights: Dict[str, float] = {}
+    for q in QUESTIONS:
+        counts = [0] * len(q["options"])
+        for answers in answers_list:
+            v = answers.get(q["key"])
+            if isinstance(v, int) and 0 <= v < len(counts):
+                counts[v] += 1
+        sum_sq = sum((c / n) ** 2 for c in counts) if n else 0
+        gini_simpson = 1 - sum_sq
+        max_possible = 1 - 1 / len(q["options"])
+        weights[q["key"]] = gini_simpson / max_possible if max_possible > 0 else 0.0
+    return weights
+
+
+def _encode(answers_list: Sequence[dict], weights: Optional[Dict[str, float]] = None) -> List[List[float]]:
     offsets = []
     total = 0
     for q in QUESTIONS:
@@ -183,54 +206,54 @@ def _encode(answers_list: Sequence[dict]) -> List[List[int]]:
 
     vectors = []
     for answers in answers_list:
-        vec = [0] * total
+        vec = [0.0] * total
         for qi, q in enumerate(QUESTIONS):
             val = answers.get(q["key"])
             if isinstance(val, int) and 0 <= val < len(q["options"]):
-                vec[offsets[qi] + val] = 1
+                vec[offsets[qi] + val] = weights[q["key"]] if weights else 1.0
         vectors.append(vec)
     return vectors
 
 
-def _dot(a: List[int], b: List[int]) -> int:
+def _dot(a: List[float], b: List[float]) -> float:
     return sum(x * y for x, y in zip(a, b))
 
 
-def _add_in_place(a: List[int], b: List[int]) -> None:
+def _add_in_place(a: List[float], b: List[float]) -> None:
     for i in range(len(a)):
         a[i] += b[i]
 
 
-def form_diverse_teams(
+# How many randomized greedy passes `form_diverse_teams` tries before
+# keeping the best-scoring one. Course-sized rosters make each pass trivial
+# (a handful of milliseconds at most), so this stays comfortably synchronous.
+RESTART_COUNT = 50
+
+
+def _one_pass(
     students: Sequence[Tuple[int, dict]],
-    preferred: int = 4,
-    pair_history: Optional[Dict[int, Set[int]]] = None,
-    seed: Optional[int] = None,
+    preferred: int,
+    pair_history: Dict[int, Set[int]],
+    weights: Dict[str, float],
+    seed: int,
 ) -> List[List[int]]:
-    """`students` is a list of (student_id, answers) pairs. Returns a list
-    of groups of student ids.
-
-    Team sizing reuses `plan_group_sizes` from the random shuffle so both
-    methods land on the same group-size rules (largest-first, no lone
-    stragglers) -- only *who* goes where differs.
+    """One randomized greedy assignment: shuffle the student order, then
+    place each student, in turn, onto whichever not-yet-full team currently
+    looks LEAST similar to them (lowest weighted-dot-product against the
+    team's running answer sum), so similar answers spread across different
+    teams instead of clumping. `weights` leans this on whichever questions
+    actually varied across this pool; a repeat-partner penalty steers away
+    from pairing up two students who already shared a team before.
     """
-    if not students:
-        return []
-
-    pair_history = pair_history or {}
     answers_list = [a for _, a in students]
-    vectors = _encode(answers_list)
+    vectors = _encode(answers_list, weights)
     vec_len = len(vectors[0])
 
     order = list(range(len(students)))
-    if seed is None:
-        import secrets
-
-        seed = secrets.randbits(32)
     order = _shuffle(order, _mulberry32(seed))
 
     sizes = plan_group_sizes(len(students), preferred)
-    teams: List[dict] = [{"members": [], "vec_sum": [0] * vec_len} for _ in sizes]
+    teams: List[dict] = [{"members": [], "vec_sum": [0.0] * vec_len} for _ in sizes]
 
     for idx in order:
         student_id, _ = students[idx]
@@ -251,6 +274,71 @@ def form_diverse_teams(
         _add_in_place(teams[best]["vec_sum"], vec)
 
     return [t["members"] for t in teams if t["members"]]
+
+
+def _score_split(
+    groups: List[List[int]],
+    students: Sequence[Tuple[int, dict]],
+    pair_history: Dict[int, Set[int]],
+) -> float:
+    """Higher is better. Dominated by repeat-partner count -- a split with
+    one fewer repeat pair always wins, regardless of mix score -- then by
+    the average `team_diversity_score` across the split's teams, the same
+    "mix score" already shown to admins."""
+    answers_by_id = dict(students)
+    mix_scores = [
+        team_diversity_score([answers_by_id[sid] for sid in group]) for group in groups
+    ]
+    mix_score = sum(mix_scores) / len(mix_scores) if mix_scores else 0.0
+
+    repeats = sum(
+        1
+        for group in groups
+        for i, a in enumerate(group)
+        for b in group[i + 1 :]
+        if b in pair_history.get(a, ())
+    )
+    return mix_score - repeats * REPEAT_PARTNER_PENALTY
+
+
+def form_diverse_teams(
+    students: Sequence[Tuple[int, dict]],
+    preferred: int = 4,
+    pair_history: Optional[Dict[int, Set[int]]] = None,
+    seed: Optional[int] = None,
+) -> List[List[int]]:
+    """`students` is a list of (student_id, answers) pairs. Returns a list
+    of groups of student ids.
+
+    Team sizing reuses `plan_group_sizes` from the random shuffle so both
+    methods land on the same group-size rules (largest-first, no lone
+    stragglers) -- only *who* goes where differs.
+
+    An explicit `seed` runs a single deterministic pass (what a test wants).
+    Otherwise this tries `RESTART_COUNT` randomized passes and keeps
+    whichever one scores best -- one greedy pass can lock in a weak early
+    placement with no chance to reconsider; many passes plus picking the
+    best approximates a proper search without the complexity of one.
+    """
+    if not students:
+        return []
+
+    pair_history = pair_history or {}
+    weights = _question_weights([a for _, a in students])
+
+    if seed is not None:
+        return _one_pass(students, preferred, pair_history, weights, seed)
+
+    best_groups: Optional[List[List[int]]] = None
+    best_score = float("-inf")
+    for _ in range(RESTART_COUNT):
+        groups = _one_pass(students, preferred, pair_history, weights, secrets.randbits(32))
+        score = _score_split(groups, students, pair_history)
+        if score > best_score:
+            best_score = score
+            best_groups = groups
+
+    return best_groups if best_groups is not None else []
 
 
 # -------------------------------------------------------------------------
