@@ -96,6 +96,8 @@ async def submit(request: Request, token: str, assignment_id: int):
 
     if not ctx or ctx.assignment["id"] != assignment_id:
         return render(request, "404.html", status_code=404)
+    if ctx.assignment["external_delivery"]:
+        return render(request, "404.html", status_code=404)
 
     form = await request.form()
     assignment = ctx.assignment

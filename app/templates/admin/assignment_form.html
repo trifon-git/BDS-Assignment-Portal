@@ -43,9 +43,12 @@
   <div class="checkbox-field field"><input type="checkbox" id="acceptLate" name="acceptLate" {{ "checked" if not assignment or assignment.accept_late }}><label for="acceptLate">Accept late deliveries</label></div>
   <p class="small muted" style="margin-top:-0.5rem;">Checked: the delivery form stays open past the deadline, and anything handed in late is just flagged as late. Unchecked: the form closes the moment the deadline passes and nothing more can be submitted, extensions aside.</p>
 
+  <div class="checkbox-field field"><input type="checkbox" id="externalDelivery" name="externalDelivery" {{ "checked" if assignment and assignment.external_delivery }}><label for="externalDelivery">Delivered on AAU Digital Exam (not here)</label></div>
+  <p class="small muted" style="margin-top:-0.5rem;">Checked: this assignment has no upload form on this site at all — the team page just tells students to hand in on AAU's Digital Exam site instead. Turns off "Requires files"/"Requires video" and the delivery matrix for this assignment.</p>
+
   <div class="checkbox-field field"><input type="checkbox" id="requiresFiles" name="requiresFiles" {{ "checked" if not assignment or assignment.requires_files }}><label for="requiresFiles">Requires files</label></div>
   <div class="checkbox-field field"><input type="checkbox" id="requiresVideo" name="requiresVideo" {{ "checked" if assignment and assignment.requires_video }}><label for="requiresVideo">Requires video</label></div>
-  <p class="small muted" style="margin-top:-0.5rem;">At least one of these two must be on. A link to hosted code (Colab, GitHub, ...) also satisfies "requires files" — students aren't forced to upload a file if they'd rather link one.</p>
+  <p class="small muted" style="margin-top:-0.5rem;">At least one of these two must be on, unless "Delivered on AAU Digital Exam" above is checked. A link to hosted code (Colab, GitHub, ...) also satisfies "requires files" — students aren't forced to upload a file if they'd rather link one.</p>
 
   <div class="field-row">
     <div class="field"><label>Allowed extensions</label><input type="text" name="allowedExtensions" value="{{ assignment.allowed_extensions if assignment else 'zip,7z,ipynb,pdf' }}"></div>

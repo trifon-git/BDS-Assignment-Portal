@@ -18,6 +18,15 @@
 {% if request.query_params.get('delivered') %}<p class="alert alert-success">Delivered. Thanks!</p>{% endif %}
 {% if error %}<p class="alert alert-error">{{ error }}</p>{% endif %}
 
+{% if assignment.external_delivery %}
+<div class="card">
+  <h3 style="margin-top:0;">Hand this in on AAU's Digital Exam site</h3>
+  <p>There is nothing to upload here — deliver this assignment through the
+    university's Digital Exam system (Digital Eksamen), the same way as a
+    regular exam submission. This page will not track that delivery.</p>
+  <p class="small muted">Wrong assignment page, or not sure where on Digital Exam this goes? Email <a href="mailto:{{ support_email }}">{{ support_email }}</a>.</p>
+</div>
+{% else %}
 {% set existing = card.submission %}
 
 {% if existing %}
@@ -138,5 +147,6 @@
 </div>
 {% else %}
   <p class="card muted">The deadline has passed and this assignment does not accept late deliveries. If you believe this is wrong — an extension that isn't showing, a deadline that looks off — email <a href="mailto:{{ support_email }}">{{ support_email }}</a>.</p>
+{% endif %}
 {% endif %}
 {% endblock %}

@@ -82,7 +82,7 @@ def get_delivery_matrix(assignment: sqlite3.Row, now: Optional[int] = None) -> d
                 "files": files.get(submission["id"], []),
                 "links": links.get(submission["id"], []),
             }
-        state = delivery_state(with_files, deadline.overdue)
+        state = "external" if assignment["external_delivery"] else delivery_state(with_files, deadline.overdue)
 
         return {
             "key": f"s{student['id']}" if student else f"t{team['id']}",

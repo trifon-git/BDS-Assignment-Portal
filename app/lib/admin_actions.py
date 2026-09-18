@@ -63,9 +63,15 @@ def save_assignment(admin, form: dict) -> int:
             _err_url(back, "error", "That deadline is not a valid date and time.")
         )
 
+    external_delivery = form.get("externalDelivery") == "on"
     requires_files = form.get("requiresFiles") == "on"
     requires_video = form.get("requiresVideo") == "on"
-    if not requires_files and not requires_video:
+    if external_delivery:
+        # Delivered on AAU's own Digital Exam site -- nothing is ever
+        # uploaded here, so the file/video requirement is meaningless.
+        requires_files = False
+        requires_video = False
+    elif not requires_files and not requires_video:
         raise AdminActionError(
             _err_url(back, "error", "An assignment must ask for files, a video, or both.")
         )
@@ -91,6 +97,7 @@ def save_assignment(admin, form: dict) -> int:
         requires_video=requires_video,
         allowed_extensions=_normalise_extensions(form.get("allowedExtensions") or ""),
         max_file_size_mb=max_file_size_mb,
+        external_delivery=external_delivery,
     )
 
     with db_lock() as conn:
@@ -103,7 +110,7 @@ def save_assignment(admin, form: dict) -> int:
                 """
                 UPDATE assignments SET title=?, description=?, week_number=?, mode=?,
                   grouping=?, due_at=?, accept_late=?, requires_files=?, requires_video=?,
-                  allowed_extensions=?, max_file_size_mb=?, published_at=?
+                  allowed_extensions=?, max_file_size_mb=?, external_delivery=?, published_at=?
                 WHERE id = ?
                 """,
                 (*values.values(), published_at, id_),
@@ -115,8 +122,9 @@ def save_assignment(admin, form: dict) -> int:
                 """
                 INSERT INTO assignments
                   (title, description, week_number, mode, grouping, due_at, accept_late,
-                   requires_files, requires_video, allowed_extensions, max_file_size_mb, published_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   requires_files, requires_video, allowed_extensions, max_file_size_mb,
+                   external_delivery, published_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (*values.values(), published_at),
             )

@@ -104,6 +104,18 @@ def get_team_dashboard(
             now,
         )
 
+        if assignment["external_delivery"]:
+            cards.append(
+                {
+                    "assignment": assignment,
+                    "deadline": deadline,
+                    "submission": None,
+                    "member_rows": [],
+                    "state": "external",
+                }
+            )
+            continue
+
         if assignment["mode"] == "solo":
             member_rows = []
             for student in members:

@@ -23,7 +23,8 @@
     <span class="state-pill state-delivered">{{ state_label.delivered }}</span> in on time, awaiting review &middot;
     <span class="state-pill state-late">{{ state_label.late }}</span> in after the deadline, awaiting review &middot;
     <span class="state-pill state-approved">{{ state_label.approved }}</span> reviewed and accepted &middot;
-    <span class="state-pill state-rework">{{ state_label.rework }}</span> sent back — resubmit to clear it.
+    <span class="state-pill state-rework">{{ state_label.rework }}</span> sent back — resubmit to clear it &middot;
+    <span class="state-pill state-external">{{ state_label.external }}</span> not tracked here, hand in on Digital Exam.
   </p>
   {% for card in cards %}
     {% set a = card.assignment %}
@@ -53,10 +54,10 @@
           <strong>Feedback:</strong> {{ card.submission.review_comment }}
         </p>
       {% endif %}
-      <a href="/t/{{ token }}/a/{{ a.id }}" class="btn {{ 'btn-primary' if card.deadline.can_submit else '' }}">
-        {% if card.submission or card.member_rows|selectattr('submission')|list|length > 0 %}View or replace{% elif card.deadline.can_submit %}Deliver{% else %}View{% endif %}
+      <a href="/t/{{ token }}/a/{{ a.id }}" class="btn {{ 'btn-primary' if card.deadline.can_submit and a.external_delivery == 0 else '' }}">
+        {% if a.external_delivery %}View{% elif card.submission or card.member_rows|selectattr('submission')|list|length > 0 %}View or replace{% elif card.deadline.can_submit %}Deliver{% else %}View{% endif %}
       </a>
-      {% if card.submission or card.member_rows|selectattr('submission')|list|length > 0 %}
+      {% if not a.external_delivery and (card.submission or card.member_rows|selectattr('submission')|list|length > 0) %}
         <p class="small muted" style="margin-top:0.3rem;">Delivering again replaces what's there, it doesn't add a second version.</p>
       {% endif %}
     </div>

@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass
 from typing import Literal, Optional
 
-DeliveryState = Literal["pending", "missing", "delivered", "late", "approved", "rework"]
+DeliveryState = Literal["pending", "missing", "delivered", "late", "approved", "rework", "external"]
 
 STATE_LABEL: dict[str, str] = {
     "pending": "Not delivered yet",
@@ -19,6 +19,7 @@ STATE_LABEL: dict[str, str] = {
     "late": "Delivered late",
     "approved": "Approved",
     "rework": "Needs rework",
+    "external": "Handed in via Digital Exam",
 }
 
 

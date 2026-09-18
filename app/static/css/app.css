@@ -173,6 +173,7 @@ textarea { min-height: 6rem; resize: vertical; }
 .state-late { background: var(--status-late-bg); color: var(--status-late); }
 .state-approved { background: var(--status-approved-bg); color: var(--status-approved); }
 .state-rework { background: var(--status-rework-bg); color: var(--status-rework); }
+.state-external { background: var(--status-pending-bg); color: var(--status-pending); }
 
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 th, td { padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }

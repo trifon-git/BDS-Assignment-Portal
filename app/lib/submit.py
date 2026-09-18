@@ -273,6 +273,8 @@ def submit_delivery(input_: SubmitInput, ip: Optional[str] = None) -> SubmitResu
 def requirement_summary(assignment) -> str:
     """Used by the page to describe what an assignment wants, in one
     sentence."""
+    if assignment["external_delivery"]:
+        return "Delivered on AAU's Digital Exam site, not here."
     parts = []
     if assignment["requires_files"]:
         exts = [
