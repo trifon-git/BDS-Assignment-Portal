@@ -3,14 +3,21 @@
 {% block content %}
 <h1>Teams</h1>
 
-<form method="get" action="/admin/teams" class="field" style="max-width:24rem;">
-  <label>Assignment</label>
-  <select name="assignment" onchange="this.form.submit()">
-    {% for a in all_assignments %}
-      <option value="{{ a.id }}" {{ "selected" if a.id == assignment_id }}>{{ a.title }}</option>
-    {% endfor %}
-  </select>
-</form>
+<div class="field-row" style="align-items:end;">
+  <form method="get" action="/admin/teams" class="field" style="max-width:24rem;">
+    <label>Assignment</label>
+    <select name="assignment" onchange="this.form.submit()">
+      {% for a in all_assignments %}
+        <option value="{{ a.id }}" {{ "selected" if a.id == assignment_id }}>{{ a.title }}</option>
+      {% endfor %}
+    </select>
+  </form>
+  {% if assignment %}
+    <div class="field">
+      <a class="btn" href="/admin/teams/export?assignment={{ assignment.id }}">Download teams (.xlsx)</a>
+    </div>
+  {% endif %}
+</div>
 
 {% if shuffled %}
   <p class="alert alert-success">Shuffled: created {{ created }}, placed {{ placed }}, deleted {{ deleted }}, protected {{ protected_teams }}.</p>

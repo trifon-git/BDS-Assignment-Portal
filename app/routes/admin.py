@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import io
 import json
 from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import RedirectResponse, Response, StreamingResponse
 
 from app.config import ADMIN_SESSION_COOKIE, ADMIN_SESSION_DAYS, IS_PRODUCTION
 from app.db import get_db
@@ -24,6 +25,7 @@ from app.lib.team_access import get_team_members
 from app.lib.team_shuffle import QUESTIONS, question_significance, team_diversity_score
 from app.lib.team_shuffle import get_response as get_team_shuffle_response
 from app.lib.teams import count_protected_teams
+from app.lib.team_export import build_teams_workbook
 from app.templating import render
 
 router = APIRouter(prefix="/admin")
@@ -440,6 +442,32 @@ def teams_page(
         shuffle_overview=shuffle_overview,
         significance=significance,
         team_shuffle_enabled=settings["team_shuffle_enabled"] == "1",
+    )
+
+
+@router.get("/teams/export")
+def teams_export(assignment: int, admin=Depends(require_admin)):
+    conn = get_db()
+    row = conn.execute("SELECT * FROM assignments WHERE id = ?", (assignment,)).fetchone()
+    if not row:
+        return Response(status_code=404)
+
+    teams_with_members = admin_data.get_teams_with_members(assignment)
+    roster = admin_data.get_roster_with_teams(assignment)
+    unassigned = [r["student"] for r in roster if not r["team"]]
+
+    content = build_teams_workbook(row["title"], teams_with_members, unassigned)
+    filename = f"{row['title'].replace('/', '-')} - teams.xlsx"
+    ascii_fallback = filename.encode("ascii", "ignore").decode("ascii") or "teams.xlsx"
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{ascii_fallback}"; '
+                f"filename*=UTF-8''{quote(filename)}"
+            )
+        },
     )
 
 
