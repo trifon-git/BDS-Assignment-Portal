@@ -35,7 +35,7 @@
   <p class="small muted">Submitted {{ existing.submitted_at | format_deadline }} {{ "(late)" if existing.is_late }}</p>
   {% if existing.files|length > 0 %}
     <ul class="file-list">
-      {% for f in existing.files %}<li>{{ f.original_name }} ({{ f.size_bytes | format_bytes }})</li>{% endfor %}
+      {% for f in existing.files %}<li><a href="/api/files/{{ f.stored_name }}?token={{ token }}">{{ f.original_name }}</a> ({{ f.size_bytes | format_bytes }})</li>{% endfor %}
     </ul>
   {% endif %}
   {% if existing.link_url %}<p>Code link: <a href="{{ existing.link_url }}" target="_blank" rel="noopener">{{ existing.link_url }}</a></p>{% endif %}
