@@ -1,5 +1,13 @@
 # BDS Assignment Portal
 
+![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![Jinja](https://img.shields.io/badge/Jinja2-server--rendered-B41717?logo=jinja&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-single--file%20DB-003B57?logo=sqlite&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-container-2496ED?logo=docker&logoColor=white)
+![Coolify](https://img.shields.io/badge/Deploy-Coolify-6C3EF4?logo=coolify&logoColor=white)
+![openpyxl](https://img.shields.io/badge/openpyxl-xlsx%20export-217346?logo=microsoftexcel&logoColor=white)
+
 A self-hosted web app where students on the **Business Data Science** master's
 at Aalborg University hand in their weekly assignments, and the course
 responsible sees at a glance who has delivered, who is missing, and who needs
