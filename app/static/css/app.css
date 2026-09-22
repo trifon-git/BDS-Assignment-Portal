@@ -170,7 +170,6 @@ textarea { min-height: 6rem; resize: vertical; }
 .state-pending { background: var(--status-pending-bg); color: var(--status-pending); }
 .state-missing { background: var(--status-missing-bg); color: var(--status-missing); }
 .state-delivered { background: var(--status-delivered-bg); color: var(--status-delivered); }
-.state-late { background: var(--status-late-bg); color: var(--status-late); }
 .state-approved { background: var(--status-approved-bg); color: var(--status-approved); }
 .state-rework { background: var(--status-rework-bg); color: var(--status-rework); }
 .state-external { background: var(--status-pending-bg); color: var(--status-pending); }

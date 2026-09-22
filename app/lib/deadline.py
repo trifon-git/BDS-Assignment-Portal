@@ -10,13 +10,12 @@ import time
 from dataclasses import dataclass
 from typing import Literal, Optional
 
-DeliveryState = Literal["pending", "missing", "delivered", "late", "approved", "rework", "external"]
+DeliveryState = Literal["pending", "missing", "delivered", "approved", "rework", "external"]
 
 STATE_LABEL: dict[str, str] = {
     "pending": "Not delivered yet",
     "missing": "Missing",
     "delivered": "Delivered",
-    "late": "Delivered late",
     "approved": "Approved",
     "rework": "Needs rework",
     "external": "Handed in via Digital Exam",
@@ -72,7 +71,8 @@ def delivery_state(
 
     Review outcome outranks timing: once a reviewer has approved something,
     that is the useful fact, and lateness is still available separately via
-    `is_late` for the admin's "who was late" filter.
+    `is_late` for the admin's "who was late" filter -- it just doesn't get
+    its own badge here, "delivered" covers on-time and late alike.
     """
     if submission is None:
         return "missing" if overdue else "pending"
@@ -80,7 +80,7 @@ def delivery_state(
         return "approved"
     if submission["status"] == "rework":
         return "rework"
-    return "late" if submission["is_late"] else "delivered"
+    return "delivered"
 
 
 def is_outstanding(state: DeliveryState) -> bool:

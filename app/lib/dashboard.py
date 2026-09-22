@@ -184,8 +184,6 @@ def _summarise_members(rows: List[dict]) -> str:
         return "missing"
     if "pending" in states:
         return "pending"
-    if "late" in states:
-        return "late"
     if all(s == "approved" for s in states):
         return "approved"
     return "delivered"
