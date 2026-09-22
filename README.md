@@ -1,314 +1,522 @@
 # BDS Assignment Portal
 
-A small self-hosted web app where students on the **Business Data Science**
-master's at Aalborg University deliver their weekly assignments, and the course
-responsible sees at a glance who has delivered and who hasn't.
+A self-hosted web app where students on the **Business Data Science** master's
+at Aalborg University hand in their weekly assignments, and the course
+responsible sees at a glance who has delivered, who is missing, and who needs
+to be chased — without either side ever creating an account.
 
-Students hand in code archives, PDFs and a Panopto link, as a team or
-individually. The admin panel defines the assignments, watches the deliveries,
-reviews the files, and chases whoever is missing.
+---
 
-Deployment instructions for the university server are in
-[DEPLOYMENT.md](./DEPLOYMENT.md).
+## Table of contents
+
+- [The idea in one paragraph](#the-idea-in-one-paragraph)
+- [Capabilities](#capabilities)
+- [User flows](#user-flows)
+- [Data model](#data-model)
+- [Architecture](#architecture)
+- [Tech stack](#tech-stack)
+- [Route reference](#route-reference)
+- [Development](#development)
+- [Deployment](#deployment)
+- [Security posture](#security-posture)
+- [Known limitations](#known-limitations)
+- [What could be built next](#what-could-be-built-next)
 
 ---
 
 ## The idea in one paragraph
 
-Students do not have accounts. Each team has a private link — `/t/<token>` — and
-that link is the credential; they bookmark it once and use it all semester. The
-class roster is imported by the admin, so every "who is submitting this?"
-dropdown offers real people and the delivery counts always add up against a
-known denominator. Because identity comes from the roster rather than from a
-login, one team link covers individual assignments too: a solo assignment shows
-one row per member inside the team page.
+Nobody logs in. A **team** is identified by a private link (`/t/<token>`) or a
+short, typeable code (`BDS-7K2P`); a **student** additionally has their own
+permanent personal link (`/s/<token>`) that lists every assignment they're in,
+across every team they've ever been placed on. The class roster is imported
+once by the admin, so every "who is this?" dropdown offers real people and
+every delivery count adds up against a known denominator. The design
+constraint behind all of it: **friction for students must be near zero** — no
+account, no password, no verification email, nothing to remember except one
+bookmarked URL.
 
-The design constraint behind all of it: **friction for students must be near
-zero**. No account, no password, no verification email — nothing to remember
-except one bookmarked URL.
-
-### For students
-
-1. Open the site and type the team code (`BDS-7K2P`), or use the bookmarked link.
-2. The dashboard lists every published assignment with its status.
-3. Open one, pick your name from *Submitted by*, attach the files, paste the
-   Panopto link if the assignment asks for a video, and deliver.
-4. A delivery can be replaced any time until the deadline.
-
-### For the course responsible
-
-Sign in at `/admin/login`. An assignment stays invisible to students until
-*Published* is ticked, so a half-written brief is never exposed by a guessed URL.
+The admin side is the opposite: a real password, a server-side session, and an
+audit log — because that side holds every submission for the whole class.
 
 ---
 
-## Tech stack
+## Capabilities
 
-| Layer | Choice | Version | Why |
-|---|---|---|---|
-| Framework | Next.js (App Router) | 16.3.4 | Server Components for the data-heavy admin screens; Route Handlers for the streaming upload path |
-| Runtime | React | 19.2.8 | |
-| Language | TypeScript | 5.9 | `strict`, with Next's generated `PageProps` / `RouteContext` route types |
-| Database | SQLite via better-sqlite3 | 13.0.3 | One file. The whole app is one container plus one directory |
-| Query layer | Drizzle ORM + drizzle-kit | 0.45.2 / 0.31.10 | Typed schema, SQL-shaped queries, versioned migrations |
-| Styling | Tailwind CSS | 4.3.3 | `@theme inline` tokens, OKLCH colour ramp derived from the AAU logo |
-| Components | shadcn/ui on Base UI | @base-ui/react 1.7.0 | Base UI, **not** Radix — composition uses `render={...}`, not `asChild` |
-| Icons | lucide-react | 1.39.0 | |
-| Uploads | busboy | 1.6.0 | Streams multipart straight to disk instead of buffering it |
-| Bulk download | archiver | 8.0.0 | v8 exports classes (`new ZipArchive()`); the callable form was removed |
-| Passwords | bcryptjs | 3.0.3 | Cost 12, admin accounts only |
-| Validation | zod | 4.5.4 | |
-| Tests | vitest | 4.1.11 | Plus HTTP-level suites in `scripts/` |
-| Packaging | Docker + Compose | — | `output: "standalone"`, one bind-mounted `/data` volume |
+### Assignments
 
-**Why SQLite over Postgres.** This is sized for one course — a few dozen teams
-writing once a week. SQLite makes the deployment a single container and a single
-directory, and a backup a copy of that directory, which matters a great deal when
-handing the thing to university IT. Drizzle keeps the door open to Postgres later
-as a configuration change rather than a rewrite.
+- **Team or solo** (`mode`). A solo assignment reuses the same team page, but
+  expands into one row per member with its own independent delivery.
+- **Requirements are toggles, not code**: requires files, requires video (at
+  least one must be on, see the exception below), allowed file extensions,
+  per-assignment max file size, whether late deliveries are still accepted
+  after the deadline.
+- **External delivery.** An assignment can be marked "delivered on AAU's
+  Digital Exam site instead" — this turns off the upload form entirely, shows
+  students a plain notice on their team page instead of a form, and excludes
+  the assignment from the missing/outstanding counts everywhere in the admin
+  panel, since it was never going to be delivered here.
+- **Draft vs. published.** An assignment is invisible to every team — even one
+  that already has the link — until *Published* is ticked. A half-written
+  brief can never be exposed by a guessed URL.
+- **Per-team deadline extensions**, layered on top of the assignment's own
+  deadline without touching it for anyone else.
+
+### Team formation — three admin-chosen modes per assignment
+
+Each assignment picks one **grouping** strategy, set once when the assignment
+is created:
+
+| Grouping | Who places students | What it looks like |
+|---|---|---|
+| `copy` | Admin, by carrying over another assignment's teams | One click on the assignment page: "Copy teams from another assignment" |
+| `students` | Students themselves | `/join` opens for that assignment only; a student names a team and picks teammates from whoever's still unassigned |
+| `admin` | Admin, by hand or by an automated split | The Teams page: create teams one at a time, or run a shuffle |
+
+On top of manual team-building, the admin has two **automated splitting**
+tools, both available from the Teams page and both safe to re-run:
+
+- **Random shuffle** — cuts a chosen group size (2–8) out of whoever has no
+  team yet. "Re-shuffle everyone" additionally deletes and re-cuts every
+  existing team for that assignment, except any team that already has a
+  submission or a deadline extension attached — those are never touched,
+  because deleting them would take real deliveries and their files down too.
+- **Questionnaire-based shuffle** — a short, deliberately non-academic,
+  personality-flavoured questionnaire ("if you were a pizza topping…") that
+  students fill in once on their personal page. The splitter groups by answer
+  diversity (each team's "mix %" is shown) and actively avoids re-pairing two
+  students who already shared a team on any past assignment. Anyone who
+  hasn't answered yet is skipped and left for the random shuffle to pick up.
+
+Whichever method places a team, the admin can afterwards rename it, move
+individual members between teams, add or remove a member, or **regenerate**
+its link and code (invalidates the old one immediately — the fix for a leaked
+link).
+
+### Student self-service
+
+- **`/join`** — pick a still-published assignment with `grouping = students`,
+  name a team, tick teammates off the list of people not yet on a team for
+  that assignment. A last-moment race (someone else claims a teammate first)
+  is caught and reported rather than silently corrupting the team.
+- **Group change requests** — a student can ask, from their personal page, to
+  be moved to a different group for one assignment, with a reason. They don't
+  pick a destination team (that stays the admin's call); the admin reviews
+  the queue, picks where they land, and the move is recorded exactly like a
+  manual move would be.
+- **Identity cookie** — after visiting their personal link once, a student's
+  browser is recognised on every team page they're a member of: no more
+  picking their own name from a dropdown before delivering or posting to the
+  forum.
+
+### Delivery & review
+
+- A delivery accepts a mix of **file uploads**, a **primary code link** (e.g.
+  a Colab or GitHub URL — accepted as an alternative to a file, not only
+  alongside one), any number of **extra links**, an optional **video link**
+  with an explicit "I've set the sharing so AAU staff can watch it"
+  confirmation, and a free-text **note** to the reviewer.
+- **Replaceable until the deadline** (or forever, if the assignment accepts
+  late deliveries) — resubmitting fully replaces the previous delivery and
+  clears any prior review outcome, putting it back in the queue as fresh.
+- **Review workflow**: an admin approves or sends a delivery back for rework
+  with a comment, which is what the team sees on their own page. Feedback can
+  also be emailed directly from the admin panel via a pre-filled `mailto:`
+  link — nothing sends automatically.
+- **Status is deliberately simple**: `pending → missing` (nothing in, before
+  or after the deadline) or `pending → delivered → approved`/`rework`. Late
+  delivery is still tracked as a fact (`is_late`, shown next to the submitted
+  timestamp, counted separately in the admin summary and in the CSV export)
+  but does **not** get its own status badge — a late delivery and an on-time
+  one both simply read "Delivered".
+- **Missing-only filter** on the delivery matrix, plus a one-click "chase by
+  email" that opens a blank message to every member of a team that hasn't
+  delivered.
+
+### Collaboration
+
+- Every team has a **private forum** on its own dashboard — one level of
+  threading (replies to a root message, not to each other), post/edit/delete,
+  and new messages appear for teammates without a page refresh (short-poll
+  fragment).
+
+### Admin operations
+
+- **Delivery matrix** per assignment: every team/student, current status,
+  submitted time, files (each a working download link), every link, video,
+  note, and inline review + extension controls, filterable to outstanding
+  only.
+- **Notifications feed** — a running log of things worth an admin's
+  attention (new/replaced delivery, forum post, team created, change request
+  filed), with an unseen-count badge.
+- **Audit log** — every consequential action (team created, submission
+  replaced, change request approved, etc.) recorded with an actor name, an
+  IP, and a detail string.
+- **Roster management** — bulk-paste import that understands plain CSV,
+  semicolon-CSV, `Name <email>` pairs, or bare email addresses; add, edit,
+  deactivate, or remove a student one at a time; track whether that student's
+  personal link has been sent yet.
+- **Settings** — semester name, short course code (used in email subject
+  lines), support email shown on every student page, default max upload
+  size, and the team-shuffle questionnaire on/off switch.
+- **Multiple admin accounts**, each with their own login and audit trail.
+
+### Exports
+
+- **Per-assignment ZIP + CSV + HTML index** — every submitted file, foldered
+  by team, plus a `summary.csv` and a standalone `index.html` (open it
+  straight from the unzipped folder for a clickable table). Both list every
+  team member with their email in one column, and give every delivered link
+  its own column rather than mashing them together.
+- **Team formation as `.xlsx`** — one click on the Teams page downloads the
+  current roster for that assignment: one row per student grouped by team
+  (team name, team code, name, email), plus an "Unassigned" section for
+  anyone not yet placed.
 
 ---
 
-## Architecture
+## User flows
 
+### Student journey
+
+```mermaid
+flowchart TD
+    A[Student gets a link or a short code] --> B{What kind of link?}
+    B -->|Team link /t/token or code| C[Team dashboard]
+    B -->|Personal link /s/token| P[Personal page:<br/>every assignment, across every team]
+    P -->|opens their current team| C
+    P -->|assignment uses grouping=students<br/>and they have no team yet| J[/join: name a team,<br/>pick teammates/]
+    J --> C
+    P -->|wants to switch groups| R[Request a group change<br/>with a reason]
+    R -.reviewed by admin.-> C
+
+    C --> D{Pick an assignment}
+    D -->|external_delivery| N[Notice: hand in on<br/>AAU Digital Exam instead]
+    D -->|normal| E[Delivery form:<br/>files / code link / extra links / video / note]
+    E --> F[Deliver]
+    F --> G{Deadline passed?}
+    G -->|no, or late accepted| H[Status: Delivered]
+    G -->|yes and late not accepted| X[Form closed, nothing more accepted]
+    H --> I{Admin reviews}
+    I -->|approve| K[Approved]
+    I -->|send back| L[Needs rework]
+    L -->|resubmit| H
+    C --> M[Team forum: post, reply, edit, delete]
 ```
-Browser
-  │
-  ├── /                     landing: type a team code
-  ├── /join                 self-organise into a team
-  ├── /t/<token>            team dashboard — every published assignment
-  ├── /t/<token>/a/<id>     the delivery form
-  │        │
-  │        └── POST /api/submit/<token>/<id>   ← Route Handler, streams to disk
-  │
-  └── /admin/*              password-protected, Server Actions for every mutation
-                                   │
-                            src/lib/*  ← all rules live here
-                                   │
-                            Drizzle → SQLite  (/data/app.db)
-                                    → uploads (/data/uploads/<uuid>)
+
+### Team-formation decision (admin picks per assignment)
+
+```mermaid
+flowchart LR
+    S[New assignment] --> G{Grouping mode}
+    G -->|copy| CP[Copy teams from<br/>another assignment]
+    G -->|students| SJ[/join opens for<br/>this assignment only/]
+    G -->|admin| AD{Admin builds teams}
+
+    AD --> M1[Create/edit teams<br/>by hand on Teams page]
+    AD --> M2[Random shuffle<br/>group size 2-8]
+    AD --> M3[Questionnaire shuffle<br/>groups by answer diversity,<br/>avoids repeat pairings]
+
+    CP --> T[Teams exist for this assignment]
+    SJ --> T
+    M1 --> T
+    M2 --> T
+    M3 --> T
+
+    T --> RS{Re-shuffle everyone?}
+    RS -->|yes| PR[Teams with a submission<br/>or a deadline extension<br/>are protected, never deleted]
+    RS -->|no, fill only| T
 ```
 
-Two deliberate splits:
+### Submission status
 
-- **Mutations are Server Actions; uploads are a Route Handler.** Server Actions
-  cap the request body at a couple of megabytes, and students deliver ZIPs two
-  orders of magnitude larger. The upload route also keeps the delivery form
-  working with JavaScript disabled.
-- **Rules live in `src/lib`, not in pages.** `submit.ts` holds every acceptance
-  rule, so the upload route is a thin wrapper — which matters because that route
-  is reachable by direct POST and cannot assume the form was honest.
+```mermaid
+stateDiagram-v2
+    [*] --> pending: assignment published, deadline not passed
+    pending --> missing: deadline passes, nothing submitted
+    pending --> delivered: student submits
+    missing --> delivered: student submits (if late accepted)
+    delivered --> approved: admin approves
+    delivered --> rework: admin sends back
+    rework --> delivered: student resubmits
+    approved --> [*]
 
----
+    note right of delivered
+        On-time and late both
+        show "Delivered" — lateness
+        is recorded (is_late) but
+        has no separate badge.
+    end note
 
-## Modules
-
-### Data layer — `src/db/`
-
-| File | What it is |
-|---|---|
-| `schema.ts` | **The spine.** 11 tables: students, teams, team_members, assignments, submissions, submission_files, deadline_extensions, admins, admin_sessions, audit_log, settings. Timestamps are epoch-ms integers. The two *partial* unique indexes on `submissions` are what keep one team (or one student) to a single live delivery per assignment. `team_members` has a unique index on `student_id` — a student is on exactly one team at a time. |
-| `index.ts` | The connection: SQLite with WAL, `foreign_keys = ON` and a busy timeout, cached on `globalThis`. That cache is load-bearing in production, not a dev nicety — a built Next app evaluates this module once per bundler layer, and without it each layer opens its own connection. Also exports `runMigrations()`. |
-| `seed.ts` | A plausible fake cohort: 16 students, 4 teams, 5 assignments, 12 submissions in a mix of states. Refuses to touch a database that already has students unless `RESEED=1`. |
-
-### Domain logic — `src/lib/`
-
-| File | What it is |
-|---|---|
-| `deadline.ts` | Pure and unit-tested. Resolves the effective deadline (assignment due date, overridden by any per-team extension) and derives every status in the app: `pending / missing / delivered / late / approved / rework`. |
-| `submit.ts` | **Every rule that decides whether a delivery is accepted**: membership re-check, deadline, required files, required video, sharing confirmation. Replaces a previous submission transactionally, clears its review status, and deletes the old bytes only after the transaction commits. |
-| `storage.ts` | The single filesystem choke point. Files are stored under UUID names, never a name the student chose. `resolveStoredPath()` refuses anything that is not a bare UUID; `sanitizeFilename()` filters by code point rather than by regex. |
-| `multipart.ts` | busboy wrapper. Streams each part to disk against the assignment's own size and extension limits, and cleans up orphaned bytes when a request fails part-way. |
-| `team-access.ts` | Turns a team link or short code into a team. **Every student route enters here**, which keeps "what does holding this link entitle you to" in one auditable place. |
-| `auth.ts` | Admin only. bcrypt verification against a dummy hash so a wrong email costs the same as a wrong password; opaque session tokens; `HttpOnly` / `SameSite=Lax` cookies; session pruning; `recordAudit()`. |
-| `admin-actions.ts` | `"use server"`. Every admin mutation — assignments, review, extensions, roster, students, teams, settings — each one starting with `requireAdmin()`. |
-| `admin-data.ts` | The read side. `getDeliveryMatrix()` is the query this app exists for; `getRoster()` and `getRosterWithTeams()` back the student and team screens. Returns `now` to its callers so pages never call `Date.now()` during render. |
-| `dashboard.ts` | Builds every assignment card for a team from three bulk queries rather than per-row lookups. |
-| `format.ts` | Europe/Copenhagen formatting and **strict** `datetime-local` parsing — a regex, not `new Date()`, so a typo cannot silently become a valid deadline in the year 2000. Handles the DST boundaries. |
-| `roster.ts` | Parses a pasted class list: CSV, semicolon-CSV, `Name <email>`, or bare addresses. Lowercases, de-dupes, transliterates Nordic characters. Separate from `admin-actions.ts` because a `"use server"` module may only export async functions. |
-| `settings.ts` | Admin-editable settings read through a defaults map, so a missing row never breaks a page and adding a setting never needs a migration. Also holds the video-host check. |
-| `config.ts` | Everything environment-derived, resolved once: `DATA_DIR`, upload ceiling, timezone, session lifetime, setting defaults. |
-| `ids.ts` | Team access tokens (128-bit) and human-typable short codes (`BDS-7K2P`). |
-| `web-stream.ts` | Wraps `ReadableStream.from` in one place — `Readable.toWeb()` throws an *uncaught* exception on client disconnect, which would take the server process down. |
-
-### Routes — `src/app/`
-
-**Student-facing** — no authentication; the team token is the credential.
-
-| Route | Purpose |
-|---|---|
-| `/` | Landing. Type a team code, plus instructions on why that code matters and who to email if it is lost. |
-| `/join` | Self-organise: pick your name from the roster, name the team, add teammates. |
-| `/t/[token]` | Team dashboard: members, the bookmark card, and every published assignment split into open and past. Solo assignments expand to one row per member. |
-| `/t/[token]/a/[id]` | The delivery form: requirements restated, file picker, Panopto field, "Submitted by" dropdown. |
-
-**Admin** — email + password.
-
-| Route | Purpose |
-|---|---|
-| `/admin/login` | |
-| `/admin` | This week at a glance: progress, who is outstanding, recent activity. |
-| `/admin/assignments`, `.../new`, `.../[id]/edit` | Create and edit; every requirement is a toggle — team or solo, files and/or video, allowed extensions, size cap, deadline, whether late is accepted, draft or published. |
-| `/admin/assignments/[id]` | **The delivery matrix** — the "who delivered and who didn't" screen. Filter to outstanding, copy the chase list, approve / needs-rework with a comment, extend one team's deadline, download everything. |
-| `/admin/teams` | Create teams from anyone in the class, move members between them, copy or rotate a team's link. |
-| `/admin/students` | Bulk import, add one, edit, deactivate, remove. |
-| `/admin/settings` | Semester name, student contact address, recognised video hosts, default size cap. |
-
-**API**
-
-| Route | Purpose |
-|---|---|
-| `POST /api/submit/[token]/[assignmentId]` | The upload endpoint. Streams multipart to disk, applies `submit.ts`, and redirects back with a **relative** `Location` — an absolute one built from the server's own hostname resolves to `0.0.0.0` inside a container. |
-| `GET /api/files/[storedName]` | Serves one file to an admin, or to a holder of the owning team's token. `Cache-Control: private, no-store`. |
-| `GET /api/admin/assignments/[id]/download` | Streams a whole assignment as one ZIP, foldered per team, with a `submissions.csv` index that includes the teams who did *not* deliver. |
-| `GET /api/health` | Touches the database, so a 200 means it can actually serve a request. Used as the container healthcheck. |
-
-`src/instrumentation.ts` runs at boot: it applies migrations and creates the
-first admin from `ADMIN_EMAIL` / `ADMIN_PASSWORD`, so the container can be handed
-over as "docker compose up" with no separate setup step to forget.
-
-### Components — `src/components/`
-
-`ui/` is shadcn/ui on Base UI. Everything above it is application-specific:
-`site-shell` (the student frame), `admin-nav`, `submission-form`, `join-form`,
-`team-card`, `new-team-form`, `student-list`, `add-student-form`,
-`roster-import`, `assignment-form`, `review-controls`, `extension-control`,
-`chase-list`, `status-badge`, `team-link-card`, `brand/aau-logo`.
-
-Status is **never signalled by colour alone** — always an icon plus a label, so
-it survives colour-blindness and printing.
-
-### Scripts — `scripts/`
-
-| Script | |
-|---|---|
-| `smoke-test.mjs` | 37 end-to-end checks against a running dev server: real multipart uploads, replacement, download, and the access-control boundaries. Reads the SQLite file directly, so it must run where that file is. |
-| `verify-deployment.mjs` | The same core loop over **HTTP only**, so it can be pointed at the university server from a laptop. Delivers a file, checks the app's own page lists it, downloads it back byte-for-byte, and optionally restarts the container to prove the volume survives. |
-| `login-test.mjs` | Drives the real login form the way a browser with JavaScript disabled would, and checks every admin route turns away a session-less request. |
-| `admin-session.mjs` | Mints an admin session directly into the database, for testing admin pages without the login form. |
+    [*] --> external: assignment is external_delivery
+    external --> [*]: never tracked here, handled on Digital Exam
+```
 
 ---
 
 ## Data model
 
+```mermaid
+erDiagram
+    STUDENTS ||--o{ TEAM_MEMBERS : "belongs to (per assignment)"
+    TEAMS ||--o{ TEAM_MEMBERS : has
+    ASSIGNMENTS ||--o{ TEAM_MEMBERS : "scopes membership"
+    TEAMS ||--o{ SUBMISSIONS : delivers
+    ASSIGNMENTS ||--o{ SUBMISSIONS : "for"
+    SUBMISSIONS ||--o{ SUBMISSION_FILES : contains
+    SUBMISSIONS ||--o{ SUBMISSION_LINKS : contains
+    ASSIGNMENTS ||--o{ DEADLINE_EXTENSIONS : "per-team override"
+    TEAMS ||--o{ DEADLINE_EXTENSIONS : "granted to"
+    TEAMS ||--o{ FORUM_MESSAGES : has
+    STUDENTS ||--o{ GROUP_CHANGE_REQUESTS : files
+    ASSIGNMENTS ||--o{ GROUP_CHANGE_REQUESTS : "for"
+    STUDENTS ||--o{ TEAM_SHUFFLE_RESPONSES : answers
+    ADMINS ||--o{ ADMIN_SESSIONS : "signs in"
+    ADMINS ||--o{ SUBMISSIONS : reviews
+
+    STUDENTS {
+        int id PK
+        text name
+        text email
+        int active
+        text access_token "personal link"
+    }
+    TEAMS {
+        int id PK
+        int assignment_id FK
+        text name
+        text access_token "team link"
+        text short_code "BDS-XXXX"
+    }
+    ASSIGNMENTS {
+        int id PK
+        text mode "team | solo"
+        text grouping "copy | students | admin"
+        int external_delivery
+        int requires_files
+        int requires_video
+        int due_at
+        int published_at
+    }
+    SUBMISSIONS {
+        int id PK
+        int assignment_id FK
+        int team_id FK
+        int student_id "set only for solo"
+        text status "submitted|approved|rework"
+        int is_late
+        text video_url
+        text link_url
+    }
 ```
-students ──┬──< team_members >── teams ──< submissions >── assignments
-           │                       │           │
-           │                       │           └──< submission_files
-           │                       └──< deadline_extensions >── assignments
-           └───────────────────────────< submissions  (solo: student_id set)
 
-admins ──< admin_sessions          settings          audit_log
+`submissions.student_id` is `NULL` for a team delivery and set for a solo one
+— a team assignment has exactly one live submission row, a solo assignment
+has one per member. That null is the join key every read path (dashboard,
+delivery matrix, ZIP export) uses to tell the two apart.
+
+---
+
+## Architecture
+
+```mermaid
+flowchart TD
+    subgraph Browser
+        Student[Student — no login,<br/>team/personal link is the credential]
+        Admin[Admin — email + password]
+    end
+
+    Student -->|GET/POST| Public["/  and  /join<br/>(public.py)"]
+    Student -->|GET/POST| StudentR["/t/token/*<br/>(student.py)"]
+    Student -->|GET/POST| PersonalR["/s/token/*<br/>(personal.py)"]
+    Admin -->|GET/POST| AdminR["/admin/*<br/>(admin.py)"]
+    Student -.file downloads.-> Api["/api/*<br/>(api.py)"]
+    Admin -.ZIP/xlsx export.-> Api
+
+    Public --> Lib
+    StudentR --> Lib
+    PersonalR --> Lib
+    AdminR --> Lib
+    Api --> Lib
+
+    subgraph Lib["app/lib/* — every rule lives here"]
+        direction LR
+        submit["submit.py<br/>acceptance rules"]
+        deadline["deadline.py<br/>status + timing"]
+        team_access["team_access.py /<br/>identity.py<br/>token → team/student"]
+        teams["teams.py / shuffle.py /<br/>team_shuffle.py"]
+        admin_data["admin_data.py /<br/>admin_actions.py"]
+        storage["storage.py<br/>UUID-named files"]
+    end
+
+    Lib --> DB[("SQLite<br/>/data/app.db")]
+    storage --> Files[("/data/uploads/*")]
 ```
 
-`submissions.student_id` is `NULL` for a team delivery and set for a solo one,
-which is exactly what the two partial unique indexes key on:
+Two things worth calling out:
 
-```sql
-CREATE UNIQUE INDEX submissions_team_unique
-  ON submissions (assignment_id, team_id)     WHERE student_id IS NULL;
-CREATE UNIQUE INDEX submissions_student_unique
-  ON submissions (assignment_id, student_id)  WHERE student_id IS NOT NULL;
-```
+- **Every rule lives in `app/lib`, not in a route handler.** A route function
+  is a thin wrapper: parse the request, call into `lib`, render or redirect.
+  This is what lets, e.g., `create_change_request()` or `move_student()` be
+  reused identically whether a human clicked a button or an approval flow
+  called it internally.
+- **One SQLite connection per process**, opened lazily and cached, with WAL
+  and a write lock (`db_lock`) that serializes the handful of writers this
+  app ever has. There is no ORM — every query is plain SQL against
+  `sqlite3.Row` objects, kept intentionally simple for a database this size.
 
-That null is load-bearing, and it is why removing a student deletes their solo
-submissions explicitly rather than letting the `ON DELETE SET NULL` foreign key
-quietly turn one into a team delivery.
+---
+
+## Tech stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Language / framework | Python 3.13, FastAPI | Small, explicit, no build step |
+| Templates | Jinja2 | Server-rendered HTML, no client-side framework or bundler |
+| Database | SQLite (stdlib `sqlite3`) | One file (`/data/app.db`); a backup is a directory copy |
+| Migrations | Hand-written `.sql` files in `drizzle/`, applied at boot | No ORM migration tooling — plain SQL, tracked in a `schema_migrations` table |
+| Passwords | `bcrypt` (cost 12) | Admin accounts only |
+| Spreadsheets | `openpyxl` | Team-formation `.xlsx` export |
+| Frontend | Vanilla CSS + a small hand-written `app.js` | Dark mode toggle, tabs, confirm dialogs, forum short-polling — no framework |
+| Packaging | Docker (`python:3.13-slim`), one bind-mounted `/data` volume | Whole app is one container plus one directory |
+| Hosting | Coolify (`automate.business.aau.dk`) | See [COOLIFY.md](./COOLIFY.md) |
+
+**Why SQLite, no ORM, no frontend framework.** This is sized for one course —
+a few dozen teams delivering once a week. Every dependency here is one that
+earns its place on a phone-sized budget of operational complexity: the whole
+app is a single Python process, a single file database, and a directory of
+uploads. There is nothing to build, bundle, or compile before it runs.
+
+---
+
+## Route reference
+
+**Public** — no credential at all.
+
+| Route | Purpose |
+|---|---|
+| `GET /` | Landing: type a team's short code |
+| `POST /` | Redirects a valid code to its team page |
+| `GET /join` | List assignments open for self-service team formation, or the pick-your-teammates form for one |
+| `POST /join` | Create a team |
+
+**Student-facing** — a team link, short code, or personal link is the credential.
+
+| Route | Purpose |
+|---|---|
+| `GET /t/{token}` | Team dashboard: members, team code, every published assignment's card |
+| `GET /t/{token}/a/{id}` | One assignment's delivery form (or the Digital Exam notice, if external) |
+| `POST /t/{token}/a/{id}` | Submit or replace a delivery |
+| `GET/POST /t/{token}/forum/*` | Post, edit, delete, and live-poll the team forum |
+| `GET /s/{token}` | Personal page: every assignment across every team this student is in |
+| `POST /s/{token}/request-change` | File a group change request |
+| `POST /s/{token}/team-shuffle` | Save the team-forming questionnaire |
+
+**Admin** — email + password, server-side session.
+
+| Route | Purpose |
+|---|---|
+| `GET/POST /admin/login`, `/admin/logout` | |
+| `GET /admin` | This week at a glance |
+| `GET /admin/notifications` | Event feed |
+| `GET/POST /admin/assignments*` | Create, edit, delete, and the delivery matrix |
+| `POST /admin/review`, `/admin/extension` | Approve/rework a delivery; extend one team's deadline |
+| `GET/POST /admin/students*` | Roster: import, add, edit, deactivate, remove |
+| `GET/POST /admin/change-requests*` | Review and resolve group change requests |
+| `GET/POST /admin/teams*` | Create, rename, move members, shuffle, copy, regenerate links |
+| `GET /admin/teams/export` | Download the team formation as `.xlsx` |
+| `POST /admin/team-shuffle/*` | Toggle the questionnaire; form teams from its responses |
+| `GET/POST /admin/settings*` | Semester settings, support email, admin accounts |
+
+**API**
+
+| Route | Purpose |
+|---|---|
+| `GET /api/health` | Touches the database; used as the container healthcheck |
+| `GET /api/files/{stored_name}` | Serves one uploaded file to an admin, or a holder of the owning team's token |
+| `GET /api/admin/assignments/{id}/download` | ZIP + `summary.csv` + `index.html` for one assignment |
 
 ---
 
 ## Development
 
 ```bash
-npm install
-npm run db:seed      # fake cohort; prints working team links
-npm run dev
+python -m venv .venv
+.venv/Scripts/activate           # .venv/bin/activate on macOS/Linux
+pip install -r requirements.txt
+
+# ADMIN_EMAIL / ADMIN_PASSWORD seed the first admin account on boot
+ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=changeme \
+  uvicorn app.main:app --reload --port 3000
 ```
 
-The seed prints team links and the admin credentials (`admin@aau.dk` /
-`changeme123`). `RESEED=1 npm run db:seed` wipes and starts over. Local data
-lives in `./.data` (`DATA_DIR` overrides it).
-
-| Command | |
-|---|---|
-| `npm run dev` | Development server |
-| `npm run build` / `npm start` | Production build and run |
-| `npm test` | Unit tests — deadlines, timezone handling, roster parsing |
-| `npm run typecheck` | `tsc --noEmit` |
-| `npm run lint` | ESLint |
-| `npm run db:generate` | Regenerate migrations after editing `src/db/schema.ts` |
-| `npm run db:seed` | Seed a fake cohort |
-| `npm run smoke` | End-to-end checks against a running dev server |
-| `npm run verify` | End-to-end checks against a deployed instance, over HTTP only |
-| `npm run test:auth` | Admin login and route protection |
-
-### Testing
-
-```bash
-npm test                 # unit tests
-npm run dev              # in one terminal
-npm run smoke            # in another — real uploads over real HTTP
-```
-
-The smoke suite asserts the boundaries that matter: one team cannot download
-another's files, a non-member cannot submit, an unpublished draft rejects
-deliveries, and a replaced file's bytes are removed from disk.
-
-To check something already deployed, where you have a URL and nothing else:
-
-```bash
-npm run verify -- https://delivery.example.aau.dk <teamToken> \
-  --size 50000000 --restart-cmd "docker compose restart app"
-```
-
-`--size` proves the reverse proxy accepts large uploads (it names a 413 as
-`client_max_body_size` explicitly); `--restart-cmd` proves the volume is mounted
-where the app actually writes.
-
-> Use `verify`, not `smoke`, against a container. `smoke` reads `app.db` from the
-> host while the container has it open, and SQLite's locking does not reliably
-> cross a bind mount.
+Local data lives under `./.data` by default (`DATA_DIR` overrides it — see
+[COOLIFY.md](./COOLIFY.md) for the port-collision gotcha between a container
+and a locally running dev server). Migrations in `drizzle/*.sql` apply
+themselves at startup, tracked in a `schema_migrations` table — there's no
+separate migrate step to remember.
 
 ---
 
 ## Deployment
 
-```bash
-cp .env.example .env      # set ADMIN_EMAIL and a strong ADMIN_PASSWORD
-docker compose up -d --build
-```
+The production instance runs on Coolify at
+`bds-assignment-portal.automate.business.aau.dk`; the operational playbook
+(API tokens, deploy triggers, storage, gotchas specific to that instance) is
+in [COOLIFY.md](./COOLIFY.md). General container/Tailscale/reverse-proxy
+notes are in [DEPLOYMENT.md](./DEPLOYMENT.md).
 
-The database and every uploaded file live in `./data`, mounted into the container
-at `/data`. That directory is entirely separate from the image, so rebuilding
-replaces the application and never the data; migrations apply themselves at boot.
-A backup is a copy of `data/` taken with the container stopped.
-
-Full instructions — reverse proxy configuration, backup and restore, upgrades,
-environment variables, security notes and known limitations — are in
-[DEPLOYMENT.md](./DEPLOYMENT.md).
+The database and every uploaded file live in one bind-mounted directory,
+entirely separate from the image — rebuilding replaces the application code
+and never the data. A backup is a copy of that directory.
 
 ---
 
 ## Security posture
 
-- **Students are not authenticated.** A team link is a 128-bit random token and
-  is the only thing protecting that team's submissions. This was a deliberate
-  trade for zero-friction delivery; the mitigations are the audit log and the
-  one-click **Regenerate** in the admin panel. The student pages say so plainly.
-- Admin passwords are bcrypt (cost 12). Sessions are opaque random tokens in an
-  `HttpOnly`, `SameSite=Lax` cookie, `Secure` in production.
-- Uploads are stored under UUID names and served only to an admin or to a holder
-  of the owning team's token.
-- The app makes no outbound network requests. Video links are stored as text and
-  only ever rendered as links for a human to click.
-- The container runs as an unprivileged user and writes only to `/data`.
+- **Students are not authenticated.** A team link and a personal link are
+  each a long random token; holding one is the only thing that proves who
+  you are. This is a deliberate trade for zero-friction delivery. The
+  mitigations are the audit log and a one-click **regenerate** on a team
+  whose link has leaked.
+- Admin passwords are bcrypt (cost 12), checked against a dummy hash on an
+  unknown email so login timing can't be used to enumerate accounts.
+  Sessions are opaque random tokens in an `HttpOnly`, `SameSite=Lax` cookie.
+- Uploaded files are stored under machine-generated names and served only to
+  an admin or to a holder of the owning team's token, with
+  `Cache-Control: private, no-store`.
+- The app makes no outbound network requests of its own. Video and code
+  links are stored as plain text and only ever rendered as a link for a
+  human to click.
 
 ## Known limitations
 
-- Single instance only — SQLite plus a local uploads directory means no
-  horizontal scaling. Sized for one course, not the faculty.
-- A student belongs to exactly one team at a time. Teams can be re-cut between
-  assignments, but not held simultaneously for different ones.
-- No email is sent by the app; chasing is done by copying addresses out of the
-  admin panel.
-- An admin password can only be changed by an operator from the host.
+- **Single instance only.** SQLite plus a local uploads directory means no
+  horizontal scaling — this is sized for one course, not a faculty.
+- A student is on exactly one team per assignment at a time; teams can be
+  re-cut between assignments but not held simultaneously for two different
+  ones.
+- No email is sent by the app itself — every "chase" or "email feedback"
+  action opens a pre-filled `mailto:` link for a human to actually send.
+- An admin's password is set once, when the account is created, and cannot be
+  changed from inside the app afterwards — only the sign-in email can. A
+  forgotten password means deleting and recreating that admin account.
+
+## What could be built next
+
+Ideas that fit the app's existing shape without expanding its footprint:
+
+- **Reminder emails** sent by the server itself (a background job hitting an
+  SMTP relay) instead of every chase requiring a human to click "send" —
+  the biggest gap between "the data exists" and "someone acted on it."
+- **Per-student delivery history** on the personal page: a compact timeline
+  of every assignment's outcome across the semester, not just this week's.
+- **Bulk review actions** on the delivery matrix (approve everything that
+  meets a rule, e.g. "on time and files present") for large cohorts where
+  reviewing one row at a time is the bottleneck.
+- **Configurable statuses** — right now `approved`/`rework` are fixed; a
+  course with a different grading vocabulary (e.g. pass/fail/resubmit) would
+  need this hardcoded pair to become admin-editable.
+- **Exporting the delivery matrix itself** (not just team formation) to
+  `.xlsx`, alongside the existing ZIP/CSV, now that the export path already
+  exists for the team roster.
