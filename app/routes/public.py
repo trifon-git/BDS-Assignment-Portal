@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Form, Request
+from fastapi import APIRouter, Form, Query, Request
 from fastapi.responses import RedirectResponse
 
 from app.db import db_lock, get_db
 from app.lib.auth import record_audit
-from app.lib.identity import get_student_by_token, set_identity_cookie
+from app.lib.identity import get_current_student, get_student_by_token, set_identity_cookie
 from app.lib.ids import generate_access_token, generate_short_code, normalize_short_code
 from app.lib.team_access import get_open_assignments, get_team_by_short_code, get_unassigned_students
 from app.templating import render
@@ -31,7 +31,7 @@ def open_team(request: Request, code: str = Form("")):
 
 
 @router.get("/join")
-def join(request: Request, assignment: int | None = None, error: str | None = None, as_: str | None = None):
+def join(request: Request, assignment: int | None = None, error: str | None = None, as_: str | None = Query(None, alias="as")):
     if assignment is None:
         open_assignments = get_open_assignments()
         return render(request, "join_pick.html", assignments=open_assignments, as_=as_)
@@ -42,7 +42,18 @@ def join(request: Request, assignment: int | None = None, error: str | None = No
         return render(request, "404.html", status_code=404)
 
     available = get_unassigned_students(assignment)
-    return render(request, "join_form.html", assignment=row, students=available, error=error, as_=as_)
+    creator = (get_student_by_token(as_) if as_ else None) or get_current_student(request)
+    creator_taken = bool(creator) and creator["id"] not in {s["id"] for s in available}
+    return render(
+        request,
+        "join_form.html",
+        assignment=row,
+        students=available,
+        error=error,
+        as_=as_,
+        creator=None if creator_taken else creator,
+        creator_taken=creator_taken,
+    )
 
 
 @router.post("/join")
@@ -51,6 +62,7 @@ def create_team(
     assignmentId: int = Form(...),
     name: str = Form(""),
     members: list[int] = Form([]),
+    creatorId: str = Form(""),
     as_: str = Form("", alias="as"),
 ):
     back = f"/join?assignment={assignmentId}"
@@ -69,12 +81,23 @@ def create_team(
     name = name.strip()
     ids = [m for m in members if isinstance(m, int)]
 
+    identity = (get_student_by_token(as_) if as_ else None) or get_current_student(request)
+    if identity:
+        creator_id = identity["id"]
+    else:
+        try:
+            creator_id = int(creatorId)
+        except (TypeError, ValueError):
+            return fail("Choose who you are from the list — you're part of the team you create.")
+    if creator_id not in ids:
+        ids.append(creator_id)
+
     if not name:
         return fail("Give your team a name.")
-    if not ids:
-        return fail("Choose at least one member.")
 
     still_free = {s["id"] for s in get_unassigned_students(assignmentId)}
+    if creator_id not in still_free:
+        return fail("You're already in a team for this assignment.")
     if any(i not in still_free for i in ids):
         return fail(
             "Someone you picked has just joined another team for this assignment. "
@@ -112,7 +135,6 @@ def create_team(
     )
 
     response = RedirectResponse(f"/t/{access_token}?new=1", status_code=303)
-    identity = get_student_by_token(as_) if as_ else None
-    if identity and identity["id"] in ids:
+    if as_ and identity and identity["id"] in ids:
         set_identity_cookie(response, as_)
     return response
