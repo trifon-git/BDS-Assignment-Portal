@@ -20,8 +20,11 @@
     <nav>{% block nav %}{% endblock %}<button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode">🌙</button></nav>
   </div>
   {% endblock %}
-  <div class="container{% block container_class %}{% endblock %}">
-    {% block content %}{% endblock %}
+  <div class="page{% if upcoming_events %} has-events{% endif %}">
+    <div class="container{% block container_class %}{% endblock %}">
+      {% block content %}{% endblock %}
+    </div>
+    {% if upcoming_events %}{% include "partials/events_panel.html" %}{% endif %}
   </div>
   <footer class="site">Questions? <a href="mailto:{{ support_email }}">{{ support_email }}</a></footer>
   <script src="/static/js/app.js?v={{ app_version }}"></script>

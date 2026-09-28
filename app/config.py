@@ -31,7 +31,16 @@ TIMEZONE = os.environ.get("TIMEZONE") or "Europe/Copenhagen"
 # Bumped by hand with every deploy that changes admin- or student-facing
 # behavior, so a screenshot or a support email can be pinned to a build
 # without digging through git log. Shown in the admin nav footer.
-APP_VERSION = "1.19"
+APP_VERSION = "1.20"
+
+# Upcoming-events sidebar, read from a NocoDB table. The panel only appears
+# when both NOCODB_URL and NOCODB_TOKEN are set, so an instance without them
+# behaves exactly as before. Use a read-only token scoped to the events base.
+NOCODB_URL = (os.environ.get("NOCODB_URL") or "").rstrip("/")
+NOCODB_TOKEN = os.environ.get("NOCODB_TOKEN") or ""
+NOCODB_EVENTS_TABLE = os.environ.get("NOCODB_EVENTS_TABLE") or "m2sb1rudzlkiqqt"
+EVENTS_CACHE_SECONDS = 600
+EVENTS_MAX_SHOWN = 8
 
 IS_PRODUCTION = os.environ.get("ENVIRONMENT", "production") == "production"
 

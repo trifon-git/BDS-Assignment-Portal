@@ -493,7 +493,8 @@ and never the data. A backup is a copy of that directory.
 - Uploaded files are stored under machine-generated names and served only to
   an admin or to a holder of the owning team's token, with
   `Cache-Control: private, no-store`.
-- The app makes no outbound network requests of its own. Video and code
+- The only outbound request is the optional, cached read of the upcoming-events
+  table from NocoDB (see [DEPLOYMENT.md](./DEPLOYMENT.md)). Video and code
   links are stored as plain text and only ever rendered as a link for a
   human to click.
 

@@ -13,6 +13,7 @@ from starlette.responses import HTMLResponse
 
 from app.config import APP_VERSION
 from app.lib import deadline as deadline_lib
+from app.lib import events as events_lib
 from app.lib.admin_data import NOTIFICATION_LABELS
 from app.lib.format import format_date, format_deadline, format_time, to_date_time_local
 from app.lib.settings import get_all_settings
@@ -37,6 +38,8 @@ def render(request: Request, name: str, status_code: int = 200, **context) -> HT
         "semester_name": settings["semester_name"],
         "support_email": settings["support_email"],
         "course_code": settings["course_code"],
+        # The events sidebar is student-facing only; admin pages skip the fetch.
+        "upcoming_events": [] if name.startswith("admin/") else events_lib.get_upcoming(),
         **context,
     }
     return templates.TemplateResponse(name, ctx, status_code=status_code)

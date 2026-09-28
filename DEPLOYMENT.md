@@ -20,7 +20,9 @@ password-protected.
   *teams x weeks x assignment size*, so a 12-team course with 200 MB weekly
   ZIPs over 14 weeks needs about 35 GB.
 
-No outbound internet access is required at runtime.
+No outbound internet access is required at runtime. The one optional exception
+is the upcoming-events sidebar, which reads a NocoDB table (see
+`NOCODB_URL` below); without it the app makes no outbound requests.
 
 ## First run
 
@@ -110,6 +112,9 @@ it is worth getting right.
 | `DATA_DIR` | `/data` | Database and uploads. Must match the volume mount. |
 | `MAX_UPLOAD_MB` | `250` | Hard ceiling per file, whatever an assignment asks for. Keep `client_max_body_size` above it. |
 | `TIMEZONE` | `Europe/Copenhagen` | How deadlines are displayed and interpreted. |
+| `NOCODB_URL` | — | Base URL of the NocoDB instance. With `NOCODB_TOKEN`, enables the upcoming-events sidebar on student pages. Leave unset to hide it. |
+| `NOCODB_TOKEN` | — | NocoDB API token. Use a **read-only** token from a user who can see only the events base. |
+| `NOCODB_EVENTS_TABLE` | Events table id | NocoDB table id holding the events (columns `Event`, `Date`, `Time`, `Location`, `Link`). |
 
 ## Backup
 
@@ -176,8 +181,9 @@ docker compose logs -f app
 - Uploaded files are stored under UUID names, never under a name the student
   chose, and are served only to an admin or to a holder of the owning team's
   token. Downloads are `Cache-Control: private, no-store`.
-- The app makes no outbound network requests. Video links are stored as text and
-  only ever rendered as links for a human to click.
+- The only outbound request is the optional NocoDB events read (a GET, cached
+  ten minutes, failure-tolerant). Video links are stored as text and only ever
+  rendered as links for a human to click.
 - The container runs as an unprivileged user and writes only to `/data`.
 - There is no rate limiting on the admin login beyond bcrypt's cost. If the
   admin panel is reachable from the public internet rather than the campus
