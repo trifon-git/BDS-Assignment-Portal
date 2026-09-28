@@ -86,8 +86,10 @@ a { color: var(--accent); }
 .container.narrow { max-width: 640px; }
 .container.wide { max-width: 1600px; }
 
-/* Upcoming-events panel: below the content on narrow screens, a sticky
-   right-hand column beside it once there is room. */
+/* Upcoming-events panel: below the content on narrow screens; on wide ones a
+   right-hand column. The page is a 3-column grid so the main content stays
+   centred on the screen, exactly as without the panel, whenever there is room
+   for the panel in the right margin, and shifts left only as far as needed. */
 .events-panel { max-width: 1080px; margin: 0 auto; padding: 0 1.5rem 1.5rem; }
 .events-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
 .events-card h2 { margin: 0 0 0.6rem; font-size: 1rem; }
@@ -95,15 +97,16 @@ a { color: var(--accent); }
 .events-card li { padding: 0.6rem 0; border-top: 1px solid var(--border); font-size: 0.85rem; }
 .events-card li:first-child { border-top: 0; padding-top: 0; }
 .ev-title { font-weight: 600; margin-bottom: 0.15rem; }
-.ev-meta { color: var(--muted); }
-.ev-meta span { display: inline-block; min-width: 4.2rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
+.ev-meta { display: flex; gap: 0.5rem; color: var(--muted); }
+.ev-meta .k { flex: 0 0 4.2rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; padding-top: 0.12rem; }
+.ev-meta .v { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 @media (min-width: 1200px) {
-  .page.has-events { display: flex; align-items: flex-start; justify-content: center; max-width: 1440px; margin: 0 auto; }
-  .page.has-events .container { flex: 1 1 auto; min-width: 0; margin: 0; }
-  .page.has-events .events-panel {
-    flex: 0 0 290px; margin: 0; padding: 1.5rem 1.5rem 1.5rem 0;
-    position: sticky; top: 0; max-height: 100vh; overflow-y: auto;
+  .page.has-events {
+    display: grid; align-items: start;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1080px) minmax(306px, 1fr);
   }
+  .page.has-events .container { grid-column: 2; width: 100%; }
+  .page.has-events .events-panel { grid-column: 3; width: 290px; max-width: none; margin: 0; padding: 1.5rem 0; }
 }
 
 .card {

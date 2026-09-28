@@ -5,10 +5,10 @@
       {% for e in upcoming_events %}
       <li>
         <div class="ev-title">{{ e.title }}</div>
-        <div class="ev-meta"><span>Date</span> {{ e.date_label }}</div>
-        {% if e.time %}<div class="ev-meta"><span>Time</span> {{ e.time }}</div>{% endif %}
-        {% if e.location %}<div class="ev-meta"><span>Location</span> {{ e.location }}</div>{% endif %}
-        {% if e.link %}<div class="ev-meta"><span>Link</span> <a href="{{ e.link }}" target="_blank" rel="noopener noreferrer">More info</a></div>{% endif %}
+        <div class="ev-meta"><span class="k">Date</span><span class="v">{{ e.date_label }}</span></div>
+        {% if e.time %}<div class="ev-meta"><span class="k">Time</span><span class="v">{{ e.time }}</span></div>{% endif %}
+        {% if e.location %}<div class="ev-meta"><span class="k">Location</span><span class="v">{{ e.location }}</span></div>{% endif %}
+        {% if e.link %}<div class="ev-meta"><span class="k">Link</span><span class="v"><a href="{{ e.link }}" target="_blank" rel="noopener noreferrer">More info</a></span></div>{% endif %}
       </li>
       {% endfor %}
     </ul>
