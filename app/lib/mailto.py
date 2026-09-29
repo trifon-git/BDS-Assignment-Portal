@@ -130,5 +130,11 @@ def feedback_email(
     return subject, body
 
 
+# Outlook (classic) separates recipients with a semicolon; the RFC's comma is
+# not reliably understood there. This is a tool for one admin on Outlook, so
+# the separator is the one that client expects.
+RECIPIENT_SEPARATOR = ";"
+
+
 def mailto_href(to: List[str], subject: str, body: str) -> str:
-    return f"mailto:{','.join(to)}?subject={quote(subject)}&body={quote(body)}"
+    return f"mailto:{RECIPIENT_SEPARATOR.join(to)}?subject={quote(subject)}&body={quote(body)}"

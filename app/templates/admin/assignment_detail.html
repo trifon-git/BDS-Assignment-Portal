@@ -92,7 +92,7 @@
             <a class="btn btn-sm" href="{{ mailto_href(row.chase_emails, feedback_email(course_code, assignment.title, assignment.week_number, row.team.name, row.submission.review_comment or '')[0], feedback_email(course_code, assignment.title, assignment.week_number, row.team.name, row.submission.review_comment or '')[1]) }}">Email feedback</a>
             <p class="small muted">Opens your mail client with the comment above pre-filled — nothing sends until you do.</p>
           {% else %}
-            <a class="btn btn-sm" href="mailto:{{ row.chase_emails | join(',') }}?subject={{ (course_code ~ ' - missing delivery') | urlencode }}">Chase by email</a>
+            <a class="btn btn-sm" href="mailto:{{ row.chase_emails | join(';') }}?subject={{ (course_code ~ ' - missing delivery') | urlencode }}">Chase by email</a>
             <p class="small muted">Opens a blank email to everyone on this team — you write the reminder.</p>
           {% endif %}
           <details style="margin-top:0.3rem;">
