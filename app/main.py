@@ -16,7 +16,19 @@ from app.lib.roster import titlecase_name
 
 app = FastAPI(title="AAU Assignment Portal")
 
-app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
+class RevalidatedStaticFiles(StaticFiles):
+    """Static files with `Cache-Control: no-cache`: the browser keeps a copy
+    but must ask (a cheap 304 via the ETag) before using it. Without this a
+    browser guesses how long to keep CSS/JS, and a deploy that lands while a
+    student has the site open can leave them on an old stylesheet."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
+app.mount("/static", RevalidatedStaticFiles(directory=str(Path(__file__).parent / "static")), name="static")
 
 app.add_exception_handler(RedirectException, redirect_exception_handler)
 app.add_exception_handler(
