@@ -13,11 +13,13 @@ from app.lib.change_requests import get_requests_for_student
 
 def get_personal_dashboard(student: sqlite3.Row) -> List[dict]:
     conn = get_db()
+    # Latest week first: what a student needs now is at the top. The admin
+    # views keep the oldest-first order from the same helper.
     assignments = order_published_assignments(
         conn.execute(
             "SELECT * FROM assignments WHERE published_at IS NOT NULL ORDER BY due_at"
         ).fetchall()
-    )
+    )[::-1]
     memberships = {
         row["assignment_id"]: row["team_id"]
         for row in conn.execute(
