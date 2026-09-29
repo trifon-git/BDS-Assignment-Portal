@@ -493,15 +493,6 @@ def shuffle_teams_by_questionnaire_action(admin, assignment_id: int, mode: str, 
     return result
 
 
-def set_team_shuffle_enabled(admin, enabled: bool) -> None:
-    set_setting("team_shuffle_enabled", "1" if enabled else "0")
-    record_audit(
-        action="settings.updated",
-        actor_name=f"admin:{admin['email']}",
-        detail=f"team-forming questionnaire {'enabled' if enabled else 'disabled'}",
-    )
-
-
 def rename_team(team_id: int, name: str) -> None:
     name = (name or "").strip()
     if not name:

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container narrow">
+  <p><a href="/s/{{ token }}" class="btn">&larr; My page</a></p>
+  <h1>Help me find a team</h1>
+  <p class="muted">For <strong>{{ assignment.title }}</strong>. A few quick questions about how you like to work, so your lecturer can suggest a team that fits. It only matters until you're in a team — once you are, you don't need to fill this in.</p>
+
+  {% if error %}<p class="alert alert-error">{{ error }}</p>{% endif %}
+
+  <form method="post" action="/s/{{ token }}/find-team/{{ assignment.id }}" class="card match-form">
+    <fieldset class="field">
+      <legend>How ambitious are you about this assignment?</legend>
+      <div class="scale">
+        {% for i in range(1, 6) %}<label><input type="radio" name="ambition" value="{{ i }}" {{ "checked" if answers.get("ambition") == i }} required><span>{{ i }}</span></label>{% endfor %}
+      </div>
+      <div class="scale-ends"><span>{{ m.AMBITION_LABELS[0] }}</span><span>{{ m.AMBITION_LABELS[1] }}</span></div>
+    </fieldset>
+
+    <div class="field">
+      <label for="hours">Hours a week you can put in</label>
+      <select id="hours" name="hours" required>
+        <option value="">Choose</option>
+        {% for label in m.HOURS %}<option value="{{ loop.index0 }}" {{ "selected" if answers.get("hours") == loop.index0 }}>{{ label }}</option>{% endfor %}
+      </select>
+    </div>
+
+    <fieldset class="field">
+      <legend>How do you work towards a deadline?</legend>
+      <div class="scale">
+        {% for i in range(1, 6) %}<label><input type="radio" name="rhythm" value="{{ i }}" {{ "checked" if answers.get("rhythm") == i }} required><span>{{ i }}</span></label>{% endfor %}
+      </div>
+      <div class="scale-ends"><span>{{ m.RHYTHM_LABELS[0] }}</span><span>{{ m.RHYTHM_LABELS[1] }}</span></div>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend>When can you usually meet?</legend>
+      <p class="small muted">Tick every time that usually works.</p>
+      <div class="avail">
+        <span></span>{% for d in m.DAYS %}<span class="avail-head">{{ d }}</span>{% endfor %}
+        {% for s in m.SLOTS %}
+          {% set si = loop.index0 %}
+          <span class="avail-row">{{ s }}</span>
+          {% for d in m.DAYS %}
+            {% set v = loop.index0 * (m.SLOTS | length) + si %}
+            <label><input type="checkbox" name="slots" value="{{ v }}" aria-label="{{ d }} {{ s | lower }}" {{ "checked" if v in answers.get("slots", []) }}><span></span></label>
+          {% endfor %}
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend>Where do you like to meet?</legend>
+      <div class="chips">
+        {% for key, label in m.MODES %}<label><input type="radio" name="mode" value="{{ key }}" {{ "checked" if answers.get("mode") == key }} required><span>{{ label }}</span></label>{% endfor %}
+      </div>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend>What do you bring? <span class="muted">(up to {{ m.MAX_SKILLS }})</span></legend>
+      <div class="chips" data-max="{{ m.MAX_SKILLS }}">
+        {% for key, label in m.SKILLS %}<label><input type="checkbox" name="skills" value="{{ key }}" {{ "checked" if key in answers.get("skills", []) }}><span>{{ label }}</span></label>{% endfor %}
+      </div>
+    </fieldset>
+
+    <fieldset class="field">
+      <legend>Anyone you'd like to be with? <span class="muted">(optional, up to {{ m.MAX_PREFERRED }})</span></legend>
+      <p class="small muted">Only classmates who don't have a team for this assignment yet are listed. It counts most when they pick you too.</p>
+      {% if candidates %}
+        {% set chosen = answers.get("preferred", []) %}
+        <div class="pickers">
+          {% for n in range(m.MAX_PREFERRED) %}
+            <select name="preferred" aria-label="Teammate {{ n + 1 }}">
+              <option value="">— nobody —</option>
+              {% for c in candidates %}<option value="{{ c.id }}" {{ "selected" if chosen | length > n and chosen[n] == c.id }}>{{ c.name }}</option>{% endfor %}
+            </select>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="small muted">Everyone else already has a team for this assignment.</p>
+      {% endif %}
+    </fieldset>
+
+    <div class="field">
+      <label for="notes">Anything your lecturer should know? <span class="muted">(optional)</span></label>
+      <textarea id="notes" name="notes" maxlength="{{ m.NOTE_MAX }}">{{ answers.get("notes", "") }}</textarea>
+    </div>
+
+    <button type="submit" class="btn btn-primary">{{ "Save changes" if answers else "Save my answers" }}</button>
+  </form>
+</div>
+{% endblock %}

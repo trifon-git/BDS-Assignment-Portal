@@ -32,7 +32,7 @@
       <th>Name</th><th>Email</th><th>Active</th>
       <th title="How many published assignments they're currently on a team for, out of every published assignment so far.">Grouped</th>
       <th title="Solo deliveries they own, and deliveries they clicked submit on for a team.">Deliveries</th>
-      <th title="Whether they've filled in the team-forming questionnaire on their personal page.">Questionnaire</th>
+      <th title="How many assignments they've answered 'Help me find a team' for.">Find-a-team answers</th>
       <th>Personal link</th><th>Actions</th>
     </tr>
     {% for r in roster %}
@@ -50,8 +50,8 @@
         <td class="small">{{ r.grouped_for }}/{{ r.published_assignments }}</td>
         <td class="small">{{ r.solo_submissions }} solo, {{ r.submitted_by_them }} sent</td>
         <td class="small">
-          {% if r.team_shuffle_responded %}
-            <a href="/admin/students/{{ r.student.id }}/team-shuffle" class="badge high" style="text-decoration:none;">✓ view</a>
+          {% if r.matching_answers %}
+            <a href="/admin/students/{{ r.student.id }}/team-matching" class="badge high" style="text-decoration:none;">✓ {{ r.matching_answers }} · view</a>
           {% else %}
             <span class="muted">—</span>
           {% endif %}

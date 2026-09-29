@@ -22,8 +22,7 @@ from app.lib.change_requests import get_pending_count as get_pending_change_requ
 from app.lib.mailto import change_request_outcome_email, feedback_email, mailto_href, personal_link_email, team_link_email
 from app.lib.settings import get_all_settings
 from app.lib.team_access import get_team_members
-from app.lib.team_shuffle import QUESTIONS, question_significance, team_diversity_score
-from app.lib.team_shuffle import get_response as get_team_shuffle_response
+from app.lib import team_matching
 from app.lib.teams import count_protected_teams
 from app.lib.team_export import build_teams_workbook
 from app.templating import render
@@ -298,30 +297,34 @@ def students_link_sent(student_id: int, admin=Depends(require_admin)):
     return Response(status_code=204)
 
 
-@router.get("/students/{student_id}/team-shuffle")
-def student_team_shuffle_answers(request: Request, student_id: int, admin=Depends(require_admin)):
-    student = get_db().execute("SELECT * FROM students WHERE id = ?", (student_id,)).fetchone()
+@router.get("/students/{student_id}/team-matching")
+def student_team_matching_answers(request: Request, student_id: int, admin=Depends(require_admin)):
+    conn = get_db()
+    student = conn.execute("SELECT * FROM students WHERE id = ?", (student_id,)).fetchone()
     if not student:
         return render(request, "404.html", status_code=404)
 
-    response = get_team_shuffle_response(student_id)
-    answered = json.loads(response["answers"]) if response else None
-
-    rows = [
-        {
-            "label": q["label"],
-            "chosen": q["options"][answered[q["key"]]] if answered and q["key"] in answered else None,
-        }
-        for q in QUESTIONS
-    ]
+    names = {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM students").fetchall()}
+    entries = []
+    for r in conn.execute(
+        "SELECT m.*, a.title FROM team_matching_responses m JOIN assignments a ON a.id = m.assignment_id "
+        "WHERE m.student_id = ? ORDER BY a.due_at",
+        (student_id,),
+    ).fetchall():
+        answers = json.loads(r["answers"])
+        wanted = ", ".join(names.get(i, "?") for i in answers.get("preferred", [])) or "—"
+        rows = [
+            (q, wanted if q == "Would like to be with" else a)
+            for q, a in team_matching.describe(answers)
+        ]
+        entries.append({"title": r["title"], "submitted_at": r["submitted_at"], "rows": rows})
 
     return render(
         request,
         "admin/student_team_shuffle.html",
         **_admin_ctx(admin),
         student=student,
-        response=response,
-        rows=rows,
+        entries=entries,
     )
 
 
@@ -394,28 +397,23 @@ def teams_page(
         roster = admin_data.get_roster_with_teams(assignment)
         protected = count_protected_teams(assignment)
 
-    # Questionnaire-based split -- a second way to fill the same teams list
-    # above, folded into this page (a toggle switches between the two
-    # methods) rather than living on a page of its own.
-    shuffle_overview = admin_data.get_team_shuffle_overview()
-    all_answers = [
-        json.loads(r["answers"])
-        for r in conn.execute("SELECT answers FROM team_shuffle_responses").fetchall()
-    ]
-    significance = question_significance(all_answers) if all_answers else []
-
-    if current_assignment is not None:
-        responses_by_student = {
-            r["student_id"]: json.loads(r["answers"])
-            for r in conn.execute("SELECT student_id, answers FROM team_shuffle_responses").fetchall()
-        }
+    # Questionnaire-based split: only offered for "Students form their own"
+    # assignments, where students see the "Help me find a team" form.
+    overview = None
+    for row in teams_with_members:
+        row["fit_pct"] = None
+    if current_assignment is not None and current_assignment["grouping"] == "students":
+        overview = team_matching.get_overview(current_assignment["id"])
+        answers_by_student = team_matching.get_responses_for(
+            current_assignment["id"],
+            [m["id"] for row in teams_with_members for m in row["members"]],
+        )
         for row in teams_with_members:
             member_answers = [
-                responses_by_student[m["id"]] for m in row["members"] if m["id"] in responses_by_student
+                answers_by_student[m["id"]] for m in row["members"] if m["id"] in answers_by_student
             ]
-            row["mix_pct"] = (
-                round(team_diversity_score(member_answers) * 100) if member_answers else None
-            )
+            if len(member_answers) >= 2:
+                row["fit_pct"] = round(team_matching.team_fit(member_answers) * 100)
 
     settings = get_all_settings()
 
@@ -439,9 +437,7 @@ def teams_page(
         course_code=settings["course_code"],
         team_link_email=team_link_email,
         mailto_href=mailto_href,
-        shuffle_overview=shuffle_overview,
-        significance=significance,
-        team_shuffle_enabled=settings["team_shuffle_enabled"] == "1",
+        overview=overview,
     )
 
 
@@ -590,16 +586,8 @@ def team_forum_admin(request: Request, team_id: int, admin=Depends(require_admin
 
 # -----------------------------------------------------------------------------
 # Team split (questionnaire-based team forming) -- actions only; the page
-# itself is the "Questionnaire" tab on /admin/teams above.
+# itself is the "Compatible" tab on /admin/teams above.
 # -----------------------------------------------------------------------------
-
-
-@router.post("/team-shuffle/toggle")
-async def team_shuffle_toggle(request: Request, admin=Depends(require_admin)):
-    form = await request.form()
-    actions.set_team_shuffle_enabled(admin, form.get("enabled") == "on")
-    referer = request.headers.get("referer") or "/admin/teams"
-    return RedirectResponse(referer, status_code=303)
 
 
 @router.post("/team-shuffle/form")

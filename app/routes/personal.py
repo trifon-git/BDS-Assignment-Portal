@@ -14,8 +14,10 @@ from fastapi.responses import RedirectResponse
 from app.lib.change_requests import create_change_request
 from app.lib.identity import get_student_by_token, set_identity_cookie
 from app.lib.personal import get_personal_dashboard
-from app.lib.settings import get_setting
-from app.lib.team_shuffle import QUESTIONS, get_answers, save_response
+from app.db import get_db
+from app.lib import team_matching as matching
+from app.lib.team_access import get_unassigned_students
+from app.lib.team_matching import get_answers, save_response
 from app.templating import render
 
 router = APIRouter(prefix="/s/{token}")
@@ -28,7 +30,6 @@ def personal_dashboard(request: Request, token: str, error: str | None = None, r
         return render(request, "404.html", status_code=404)
 
     rows = get_personal_dashboard(student)
-    team_shuffle_enabled = get_setting("team_shuffle_enabled") == "1"
     response = render(
         request,
         "personal.html",
@@ -37,10 +38,7 @@ def personal_dashboard(request: Request, token: str, error: str | None = None, r
         rows=rows,
         error=error,
         requested=bool(requested),
-        team_shuffle_enabled=team_shuffle_enabled,
-        team_shuffle_questions=QUESTIONS,
-        team_shuffle_answers=get_answers(student["id"]) if team_shuffle_enabled else None,
-        team_shuffle_saved=bool(request.query_params.get("shuffleSaved")),
+        match_saved=request.query_params.get("matchSaved"),
     )
     set_identity_cookie(response, token)
     return response
@@ -64,32 +62,70 @@ async def request_change(request: Request, token: str):
     return RedirectResponse(f"/s/{token}?requested=1", status_code=303)
 
 
-@router.post("/team-shuffle")
-async def team_shuffle_submit(request: Request, token: str):
+def _findable_assignment(student, assignment_id: int):
+    """The assignment, if this student may fill in its "find a team" form:
+    published, open to self-forming, and they have no team for it yet."""
+    conn = get_db()
+    assignment = conn.execute("SELECT * FROM assignments WHERE id = ?", (assignment_id,)).fetchone()
+    if not assignment or not assignment["published_at"] or assignment["grouping"] != "students":
+        return None
+    return assignment
+
+
+def _has_team(student_id: int, assignment_id: int) -> bool:
+    return get_db().execute(
+        "SELECT 1 FROM team_members WHERE student_id = ? AND assignment_id = ?",
+        (student_id, assignment_id),
+    ).fetchone() is not None
+
+
+@router.get("/find-team/{assignment_id}")
+def find_team_form(request: Request, token: str, assignment_id: int, error: str | None = None):
     student = get_student_by_token(token)
     if not student:
         return render(request, "404.html", status_code=404)
+    assignment = _findable_assignment(student, assignment_id)
+    if not assignment:
+        return render(request, "404.html", status_code=404)
+    if _has_team(student["id"], assignment_id):
+        return RedirectResponse(
+            f"/s/{token}?error={quote('You already have a team for this assignment, so there is nothing to fill in.')}",
+            status_code=303,
+        )
 
-    if get_setting("team_shuffle_enabled") != "1":
-        return RedirectResponse(f"/s/{token}", status_code=303)
+    return render(
+        request,
+        "find_team.html",
+        student=student,
+        token=token,
+        assignment=assignment,
+        answers=get_answers(assignment_id, student["id"]) or {},
+        candidates=[s for s in get_unassigned_students(assignment_id) if s["id"] != student["id"]],
+        error=error,
+        m=matching,
+    )
 
-    form = await request.form()
-    answers = {}
-    for q in QUESTIONS:
-        raw = form.get(q["key"])
-        try:
-            value = int(raw)
-        except (TypeError, ValueError):
-            return RedirectResponse(
-                f"/s/{token}?error={quote('Please answer every question before submitting.')}",
-                status_code=303,
-            )
-        if not (0 <= value < len(q["options"])):
-            return RedirectResponse(
-                f"/s/{token}?error={quote('Please answer every question before submitting.')}",
-                status_code=303,
-            )
-        answers[q["key"]] = value
 
-    save_response(student["id"], answers)
-    return RedirectResponse(f"/s/{token}?shuffleSaved=1", status_code=303)
+@router.post("/find-team/{assignment_id}")
+async def find_team_submit(request: Request, token: str, assignment_id: int):
+    student = get_student_by_token(token)
+    if not student:
+        return render(request, "404.html", status_code=404)
+    assignment = _findable_assignment(student, assignment_id)
+    if not assignment:
+        return render(request, "404.html", status_code=404)
+    if _has_team(student["id"], assignment_id):
+        return RedirectResponse(
+            f"/s/{token}?error={quote('You already have a team for this assignment, so there is nothing to fill in.')}",
+            status_code=303,
+        )
+
+    allowed = {s["id"] for s in get_unassigned_students(assignment_id)} - {student["id"]}
+    answers, error = matching.parse_answers(await request.form(), allowed)
+    if error:
+        return RedirectResponse(
+            f"/s/{token}/find-team/{assignment_id}?error={quote(error)}", status_code=303
+        )
+
+    save_response(assignment_id, student["id"], answers)
+    return RedirectResponse(f"/s/{token}?matchSaved={assignment_id}", status_code=303)

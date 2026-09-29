@@ -2,22 +2,23 @@
 {% set active = "students" %}
 {% block content %}
 <p><a href="/admin/students" class="btn">&larr; Students</a></p>
-<h1>{{ student.name }} &mdash; questionnaire</h1>
+<h1>{{ student.name }} &mdash; find-a-team answers</h1>
 <p class="muted small">{{ student.email }}</p>
 
-{% if response %}
-  <p class="small muted">Submitted {{ response.submitted_at | format_deadline }}.</p>
+{% for e in entries %}
   <div class="card">
+    <h3 style="margin-top:0;">{{ e.title }}</h3>
+    <p class="small muted">Submitted {{ e.submitted_at | format_deadline }}.</p>
     <table>
-      {% for r in rows %}
+      {% for q, a in e.rows %}
         <tr>
-          <td class="small" style="width:60%;">{{ r.label }}</td>
-          <td class="small"><strong>{{ r.chosen or "—" }}</strong></td>
+          <td class="small" style="width:45%;">{{ q }}</td>
+          <td class="small"><strong>{{ a }}</strong></td>
         </tr>
       {% endfor %}
     </table>
   </div>
 {% else %}
-  <p class="card muted">{{ student.name }} hasn't filled in the team-forming questionnaire yet.</p>
-{% endif %}
+  <p class="card muted">{{ student.name }} hasn't answered "Help me find a team" for any assignment yet.</p>
+{% endfor %}
 {% endblock %}

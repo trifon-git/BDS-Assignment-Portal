@@ -26,6 +26,13 @@ def get_personal_dashboard(student: sqlite3.Row) -> List[dict]:
         ).fetchall()
     }
     requests_by_assignment = get_requests_for_student(student["id"])
+    matched = {
+        row["assignment_id"]
+        for row in conn.execute(
+            "SELECT assignment_id FROM team_matching_responses WHERE student_id = ?",
+            (student["id"],),
+        ).fetchall()
+    }
 
     rows = []
     for assignment in assignments:
@@ -40,6 +47,7 @@ def get_personal_dashboard(student: sqlite3.Row) -> List[dict]:
                 "assignment": assignment,
                 "team": team,
                 "can_self_join": team is None and assignment["grouping"] == "students",
+                "match_answered": assignment["id"] in matched,
                 "change_request": requests_by_assignment.get(assignment["id"]),
             }
         )

@@ -264,3 +264,25 @@ footer.site { text-align: center; color: var(--muted); font-size: 0.8rem; paddin
     --status-rework-bg: #3a2320;
   }
 }
+
+/* "Help me find a team" form: 1-5 scales, an availability grid and pill
+   choices, all plain radio/checkbox inputs with the native control hidden. */
+.match-form fieldset { border: 0; padding: 0; margin: 0 0 1.25rem; min-width: 0; }
+.match-form legend { font-weight: 600; font-size: 0.9rem; padding: 0; margin-bottom: 0.4rem; }
+.match-form input[type=radio], .match-form input[type=checkbox] { position: absolute; opacity: 0; pointer-events: none; }
+.match-form label { position: relative; margin: 0; font-weight: 500; cursor: pointer; }
+.scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
+.scale span, .chips span {
+  display: block; text-align: center; padding: 0.55rem 0.4rem;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); font-size: 0.9rem;
+}
+.scale-ends { display: flex; justify-content: space-between; margin-top: 0.3rem; font-size: 0.75rem; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.chips span { border-radius: 999px; padding: 0.45rem 1rem; }
+.match-form input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
+.match-form input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.avail { display: grid; grid-template-columns: 4.5rem repeat(5, 1fr); gap: 0.4rem; align-items: center; }
+.avail-head { text-align: center; font-size: 0.75rem; color: var(--muted); }
+.avail-row { font-size: 0.75rem; color: var(--muted); }
+.avail label span { display: block; height: 2rem; border: 1px solid var(--border); border-radius: 6px; background: var(--input-bg); }
+.pickers { display: grid; gap: 0.5rem; }

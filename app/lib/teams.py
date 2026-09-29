@@ -9,7 +9,7 @@ from typing import Optional
 from app.db import db_lock, get_db
 from app.lib.ids import generate_access_token, generate_short_code
 from app.lib.shuffle import shuffle_into_groups
-from app.lib.team_shuffle import form_diverse_teams, get_pair_history, get_responses_for
+from app.lib.team_matching import form_compatible_teams, get_responses_for
 
 
 @dataclass
@@ -237,14 +237,14 @@ def shuffle_teams_by_questionnaire(
     preferred: int = 4,
     seed: Optional[int] = None,
 ) -> ShuffleResult:
-    """Same shape as `shuffle_teams`, but groups people by their
-    questionnaire answers instead of at random, steering away from pairing
-    up students who already shared a team before (across any assignment).
+    """Same shape as `shuffle_teams`, but groups people by how compatible
+    their answers to this assignment's "help me find a team" questionnaire
+    are, instead of at random.
 
-    Only students who have answered the questionnaire are placed -- anyone
-    without a saved response is left unassigned (counted in `skipped`) so
-    the ordinary "Shuffle unassigned students" can pick them up afterwards,
-    same as any other gap in the roster.
+    Only students who have answered it are placed -- anyone without a saved
+    response is left unassigned (counted in `skipped`) so the ordinary
+    "Shuffle unassigned students" can pick them up afterwards, same as any
+    other gap in the roster.
     """
     with db_lock() as conn:
         existing_teams = conn.execute(
@@ -301,12 +301,11 @@ def shuffle_teams_by_questionnaire(
                 if r["id"] not in already_grouped
             ]
 
-        responses = get_responses_for(pool)
+        responses = get_responses_for(assignment_id, pool)
         students = [(sid, responses[sid]) for sid in pool if sid in responses]
         skipped = len(pool) - len(students)
 
-        pair_history = get_pair_history()
-        groups = form_diverse_teams(students, preferred=preferred, pair_history=pair_history, seed=seed)
+        groups = form_compatible_teams(students, preferred=preferred, seed=seed)
 
         remaining_teams = protected_teams if mode == "reshuffle" else existing_teams
         next_number = 1

@@ -31,34 +31,10 @@
 
 {% if assignment %}
 <div class="card">
-  <h3 style="margin-top:0;">Questionnaire</h3>
-  <form method="post" action="/admin/team-shuffle/toggle">
-    <label style="display:flex;align-items:center;gap:0.5rem;font-weight:600;cursor:pointer;">
-      <input type="checkbox" name="enabled" onchange="this.form.submit()" {{ "checked" if team_shuffle_enabled }} style="width:16px;height:16px;">
-      Show the questionnaire on students' personal pages
-    </label>
-  </form>
-  <p class="small muted" style="margin:0.5rem 0 0;">
-    {% if team_shuffle_enabled %}
-      <strong>Currently on.</strong> Every student sees a short, fun preference questionnaire
-      card on their personal page (<code>/s/&lt;their link&gt;</code>) and can fill it in or
-      update it any time. Untick this to hide that card again — their saved answers aren't
-      deleted, so turning it back on later picks up right where things were.
-    {% else %}
-      <strong>Currently off.</strong> Students see nothing extra right now — their personal
-      page looks exactly as it always has. Tick this to add a short, fun preference
-      questionnaire card there. This only affects what students see — the response count and
-      the "who's responded" list below (and the Questionnaire column on the Students page)
-      always show, whether or not this is on.
-    {% endif %}
-  </p>
-</div>
-
-<div class="card">
   <h3 style="margin-top:0;">Form teams</h3>
   <div class="tabs">
     <button type="button" class="tab-btn active" data-tab-btn="random" data-tab-group="split-method">Random</button>
-    <button type="button" class="tab-btn" data-tab-btn="questionnaire" data-tab-group="split-method">Questionnaire</button>
+    {% if assignment.grouping == "students" %}<button type="button" class="tab-btn" data-tab-btn="questionnaire" data-tab-group="split-method">Compatible (from answers)</button>{% endif %}
   </div>
 
   <div data-tab-panel="random" data-tab-group="split-method">
@@ -91,18 +67,25 @@
     </p>
   </div>
 
+  {% if assignment.grouping == "students" %}
   <div data-tab-panel="questionnaire" data-tab-group="split-method" class="hidden">
+    <p class="small muted" style="margin:0.5rem 0;">
+      Students without a team see a <strong>Help me find a team</strong> button for this assignment on their
+      personal page. Their answers (ambition, weekly hours, deadline style, free time, meeting preference, skills
+      and who they'd like to be with) are matched here into teams that fit. Students who already have a team
+      never see the form.
+    </p>
     <div class="stat-row" style="margin:0.5rem 0;">
-      <div class="stat"><b>{{ shuffle_overview.responded | length }}</b> of {{ shuffle_overview.total_active }} responded</div>
+      <div class="stat"><b>{{ overview.responded | length }}</b> of {{ overview.total_free }} students without a team have answered</div>
     </div>
-    {% if shuffle_overview.missing %}
+    {% if overview.missing %}
       <details style="margin-bottom:0.75rem;">
-        <summary class="small muted" style="cursor:pointer;">{{ shuffle_overview.missing | length }} haven't responded yet</summary>
+        <summary class="small muted" style="cursor:pointer;">{{ overview.missing | length }} haven't responded yet</summary>
         <ul class="small" style="margin:0.5rem 0 0;">
-          {% for s in shuffle_overview.missing %}<li><a href="/admin/students#student-{{ s.id }}">{{ s.name }}</a> &mdash; {{ s.email }}</li>{% endfor %}
+          {% for s in overview.missing %}<li><a href="/admin/students#student-{{ s.id }}">{{ s.name }}</a> &mdash; {{ s.email }}</li>{% endfor %}
         </ul>
         <p style="margin-top:0.5rem;">
-          <a class="btn btn-sm" href="{{ mailto_href(shuffle_overview.missing | map(attribute='email') | list, course_code ~ ' — quick team-forming questionnaire', 'Hi,\n\nBefore teams are split, please fill in the short team-forming questionnaire on your personal page (the link you were sent earlier this semester). It takes under a minute and has no personal questions.\n\nThanks!') }}">Email them a reminder</a>
+          <a class="btn btn-sm" href="{{ mailto_href(overview.missing | map(attribute='email') | list, course_code ~ ' — help us find your team', 'Hi,\n\nYou don\'t have a team for ' ~ assignment.title ~ ' yet. On your personal page (the link you were sent earlier this semester) press "Help me find a team" and answer a few quick questions, or form a group yourself. It takes about a minute.\n\nThanks!') }}">Email them a reminder</a>
         </p>
       </details>
     {% endif %}
@@ -127,30 +110,14 @@
       </div>
     </form>
     <p class="small muted">
-      Only students who've answered the questionnaire are placed — anyone without a response
+      Only students who've answered are placed — anyone without a response
       is left unassigned so the random shuffle above can pick them up. Same protection rules as
       the random shuffle: a team with a submission or a deadline extension is never touched or
-      deleted. Also steers away from pairing up two students who already shared a team before,
-      on any past assignment.
+      deleted. A mutual "I'd like to be with" pick is honoured first.
     </p>
 
-    {% if significance %}
-      <details style="margin-top:0.75rem;">
-        <summary class="small muted" style="cursor:pointer;">Why these questions matter</summary>
-        <p class="small muted" style="margin:0.5rem 0;">
-          Each question's diversity index measures how spread out the answers are across everyone
-          who has responded so far (0% = everyone picked the same option, 100% = as varied as
-          possible) — the higher it ranks, the more it actually helps tell students apart.
-        </p>
-        {% for s in significance %}
-          <div class="sig-row">
-            <div class="sig-top"><span>{{ s.label }}</span><span>{{ s.pct }}% diversity</span></div>
-            <div class="sig-bar-track"><div class="sig-bar-fill" style="width:{{ s.pct }}%"></div></div>
-          </div>
-        {% endfor %}
-      </details>
-    {% endif %}
   </div>
+  {% endif %}
 </div>
 
 <div class="card">
@@ -174,8 +141,8 @@
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:.5rem;">
       <div>
         <h3 style="margin:0;">{{ t.team.name }}
-          {% if t.mix_pct is not none %}
-            <span class="badge {{ 'high' if t.mix_pct >= 70 else ('mid' if t.mix_pct >= 40 else 'low') }}" title="Share of the group's overall questionnaire-answer variety captured inside this team.">{{ t.mix_pct }}% mixed</span>
+          {% if t.fit_pct is not none %}
+            <span class="badge {{ 'high' if t.fit_pct >= 75 else ('mid' if t.fit_pct >= 55 else 'low') }}" title="How well the members' working styles and free time line up, from their 'Help me find a team' answers.">{{ t.fit_pct }}% fit</span>
           {% endif %}
         </h3>
         <p class="small muted">Code: {{ t.team.short_code }} &middot; <a href="/t/{{ t.team.access_token }}" target="_blank">open page</a> &middot; <a href="/admin/teams/{{ t.team.id }}/forum">forum</a></p>

@@ -107,3 +107,15 @@ if (forumPoll) {
       .catch(() => {});
   }, 4000);
 }
+
+// A checkbox group marked [data-max="N"] allows at most N ticks: ticking one
+// more unticks it again. The server enforces the same limit; this is just
+// immediate feedback.
+document.addEventListener("change", (e) => {
+  const box = e.target;
+  const group = box.closest && box.closest("[data-max]");
+  if (!group || box.type !== "checkbox" || !box.checked) return;
+  if (group.querySelectorAll("input:checked").length > Number(group.getAttribute("data-max"))) {
+    box.checked = false;
+  }
+});
